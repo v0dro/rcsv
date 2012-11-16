@@ -30,7 +30,7 @@ Or install it yourself as:
 
 ## Building the latest source
 
-    First, check out the master branch. Then cd there and run:
+First, check out the master branch. Then cd there and run:
 
     $ bundle                  # Installs development dependencies
     $ bundle exec rake        # Runs tests
@@ -99,36 +99,36 @@ A boolean flag. If enabled, only parses columns that are listed in :columns. Dis
 
 This example parses a 3-column CSV file and only returns parsed rows where "Age" values are set to "35".
 
-  Rcsv.parse some_csv, :row_as_hash => true,
-                       :columns => {
-    'First Name' => { :alias => :first_name, :default => "Unknown" },
-    'Last Name' => { :alias => :last_name, :default => "Unknown"},
-    'Age' => { :alias => :age, :type => :int, :match => "35"}
-  }
+    Rcsv.parse some_csv, :row_as_hash => true,
+                         :columns => {
+      'First Name' => { :alias => :first_name, :default => "Unknown" },
+      'Last Name' => { :alias => :last_name, :default => "Unknown"},
+      'Age' => { :alias => :age, :type => :int, :match => "35"}
+    }
 
 The result would look like this:
 
-  [
-    { :first_name => "Mary", :last_name => "Jane", :age => 35 },
-    { :first_name => "Unknown", :last_name => "Alien", :age => 35}
-  ]
+    [
+      { :first_name => "Mary", :last_name => "Jane", :age => 35 },
+      { :first_name => "Unknown", :last_name => "Alien", :age => 35}
+    ]
 
 Another example, for a miserable headerless Tab-separated CSV:
 
-  Rcsv.parse some_csv, :column_separator => "\t",
-                       :header => :none,
-                       :columns => {
-    1 => { :type => :float, :default => 0 }
-  }
+    Rcsv.parse some_csv, :column_separator => "\t",
+                         :header => :none,
+                         :columns => {
+      1 => { :type => :float, :default => 0 }
+    }
 
 The result would look like this:
 
-  [
-    [ "Very hot", 3.7, "Mercury" ],
-    [ "Very hot and cloudy", 8.87, "Venus" ],
-    [ "Just about ok", 9.78, "Earth"],
-    [ nil, 0, "Vacuum" ]
-  ]
+    [
+      [ "Very hot", 3.7, "Mercury" ],
+      [ "Very hot and cloudy", 8.87, "Venus" ],
+      [ "Just about ok", 9.78, "Earth"],
+      [ nil, 0, "Vacuum" ]
+    ]
 
 
 ## To do
