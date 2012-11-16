@@ -1,5 +1,7 @@
 # Rcsv
 
+[![Build Status](https://travis-ci.org/fiksu/rcsv.png)](https://travis-ci.org/fiksu/rcsv)
+
 Rcsv is a fast CSV parsing library for MRI Ruby. Tested on REE 1.8.7 and Ruby 1.9.3.
 
 Contrary to many other gems that implement their own parsers, Rcsv uses libcsv 3.0.2 (http://sourceforge.net/projects/libcsv/). As long as libcsv's API is stable, getting Rcsv to use newer libcsv version is as simple as updating two files (csv.h and libcsv.c).
