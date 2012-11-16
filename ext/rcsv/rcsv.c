@@ -3,37 +3,37 @@
 
 #include "csv.h"
 
-static VALUE rcsv_parse_error; // class Rcsv::ParseError << StandardError; end
+static VALUE rcsv_parse_error; /* class Rcsv::ParseError << StandardError; end */
 
-// It is useful to know exact row/column positions and field contents where parse-time exception was raised
+/* It is useful to know exact row/column positions and field contents where parse-time exception was raised */
 #define RAISE_WITH_LOCATION(row, column, contents, fmt, ...) \
   rb_raise(rcsv_parse_error, "[%d:%d '%s'] " fmt, (int)(row), (int)(column), (char *)(contents), ##__VA_ARGS__);
 
 struct rcsv_metadata {
-  // Derived from user-specified options
-  bool row_as_hash;           // Used to return array of hashes rather than array of arrays
-  size_t offset_rows;         // Number of rows to skip before parsing
+  /* Derived from user-specified options */
+  bool row_as_hash;           /* Used to return array of hashes rather than array of arrays */
+  size_t offset_rows;         /* Number of rows to skip before parsing */
 
-  char * row_conversions;     // A pointer to string/array of row conversions char specifiers
-  char ** only_rows;          // A pointer to array of strings for only_rows filter
-  VALUE * row_defaults;       // A pointer to array of row defaults
-  VALUE * column_names;       // A pointer to array of column names to be used with hashes
+  char * row_conversions;     /* A pointer to string/array of row conversions char specifiers */
+  char ** only_rows;          /* A pointer to array of strings for only_rows filter */
+  VALUE * row_defaults;       /* A pointer to array of row defaults */
+  VALUE * column_names;       /* A pointer to array of column names to be used with hashes */
 
-  // Pointer options lengths
-  size_t num_row_conversions; // Number of converter types in row_conversions array
-  size_t num_only_rows;       // Number of items in only_rows filter
-  size_t num_row_defaults;    // Number of default values in row_defaults array
-  size_t num_columns;         // Number of columns detected from column_names.size
+  /* Pointer options lengths */
+  size_t num_row_conversions; /* Number of converter types in row_conversions array */
+  size_t num_only_rows;       /* Number of items in only_rows filter */
+  size_t num_row_defaults;    /* Number of default values in row_defaults array */
+  size_t num_columns;         /* Number of columns detected from column_names.size */
 
-  // Internal state
-  bool skip_current_row;      // Used by only_rows filter to skip parsing of the row remainder
-  size_t current_col;         // Current column's index
-  size_t current_row;         // Current row's index
+  /* Internal state */
+  bool skip_current_row;      /* Used by only_rows filter to skip parsing of the row remainder */
+  size_t current_col;         /* Current column's index */
+  size_t current_row;         /* Current row's index */
 
-  VALUE * result;             // A pointer to the parsed data
+  VALUE * result;             /* A pointer to the parsed data */
 };
 
-//// Internal callbacks ////
+/* Internal callbacks */
 
 /* This procedure is called for every parsed field */
 void end_of_field_callback(void * field, size_t field_size, void * data) {
@@ -41,20 +41,20 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
   struct rcsv_metadata * meta = (struct rcsv_metadata *) data;
   char row_conversion = 0;
   VALUE parsed_field;
-  VALUE last_entry = rb_ary_entry(*(meta->result), -1); // result.last
+  VALUE last_entry = rb_ary_entry(*(meta->result), -1); /* result.last */
 
-  // No need to parse anything until the end of the line if skip_current_row is set
+  /* No need to parse anything until the end of the line if skip_current_row is set */
   if (meta->skip_current_row) {
     return;
   }
 
-  // Skip the row if its position is less than specifed offset
+  /* Skip the row if its position is less than specifed offset */
   if (meta->current_row < meta->offset_rows) {
     meta->skip_current_row = true;
     return;
   }
 
-  // Filter by string row values listed in meta->only_rows.
+  /* Filter by string row values listed in meta->only_rows */
   if ((meta->only_rows != NULL) &&
       (meta->current_col < meta->num_only_rows) &&
       (meta->only_rows[meta->current_col] != NULL) &&
@@ -63,33 +63,33 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
     return;
   }
 
-  // Get row conversion char specifier
+  /* Get row conversion char specifier */
   if (meta->current_col < meta->num_row_conversions) {
     row_conversion = (char)meta->row_conversions[meta->current_col];
   }
 
-  // Convert the field from string into Ruby type specified by row_conversion
-  if (row_conversion != ' ') { // spacebar skips the column
+  /* Convert the field from string into Ruby type specified by row_conversion */
+  if (row_conversion != ' ') { /* spacebar skips the column */
     if (field_size == 0) {
-      // Assigning appropriate default value if applicable.
+      /* Assigning appropriate default value if applicable. */
       if (meta->current_col < meta->num_row_defaults) {
         parsed_field = meta->row_defaults[meta->current_col];
-      } else { // By default, default is nil
+      } else { /* By default, default is nil */
         parsed_field = Qnil;
       }
     } else {
       if (meta->current_col < meta->num_row_conversions) {
         switch (row_conversion){
-          case 's': // String
+          case 's': /* String */
             parsed_field = rb_str_new(field_str, field_size); 
             break;
-          case 'i': // Integer
+          case 'i': /* Integer */
             parsed_field = INT2NUM(atol(field_str));
             break;
-          case 'f': // Float
+          case 'f': /* Float */
             parsed_field = rb_float_new(atof(field_str));
             break;
-          case 'b': // TrueClass/FalseClass
+          case 'b': /* TrueClass/FalseClass */
             switch (field_str[0]) {
               case 't':
               case 'T':
@@ -119,12 +119,12 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
               row_conversion
             );
         }
-      } else { // No conversion happens
-        parsed_field = rb_str_new(field_str, field_size); // field
+      } else { /* No conversion happens */
+        parsed_field = rb_str_new(field_str, field_size); /* field */
       }
     }
 
-    // Assign the value to appropriate hash key if parsing into Hash
+    /* Assign the value to appropriate hash key if parsing into Hash */
     if (meta->row_as_hash) {
       if (meta->current_col >= meta->num_columns) {
         RAISE_WITH_LOCATION(
@@ -138,12 +138,12 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
       } else {
         rb_hash_aset(last_entry, meta->column_names[meta->current_col], parsed_field);
       }
-    } else { // Parse into Array
-      rb_ary_push(last_entry, parsed_field); // result << field
+    } else { /* Parse into Array */
+      rb_ary_push(last_entry, parsed_field); /* result << field */
     }
   }
 
-  // Increment column counter
+  /* Increment column counter */
   meta->current_col++;
   return;
 }
@@ -152,30 +152,30 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
 void end_of_line_callback(int last_char, void * data) {
   struct rcsv_metadata * meta = (struct rcsv_metadata *) data;
 
-  // If filters didn't match, current row parsing is reverted.
+  /* If filters didn't match, current row parsing is reverted */
   if (meta->skip_current_row) {
-    rb_ary_pop(*(meta->result)); // result.pop
+    rb_ary_pop(*(meta->result)); /* result.pop */
     meta->skip_current_row = false;
   }
 
-  // Add a new empty array/hash for the next line unless EOF reached.
+  /* Add a new empty array/hash for the next line unless EOF reached */
   if (last_char != -1) {
     if (meta->row_as_hash) {
-      rb_ary_push(*(meta->result), rb_hash_new()); // result << {}
+      rb_ary_push(*(meta->result), rb_hash_new()); /* result << {} */
     } else {
-      rb_ary_push(*(meta->result), rb_ary_new()); // result << []
+      rb_ary_push(*(meta->result), rb_ary_new()); /* result << [] */
     }
   }
 
-  // Resetting column counter.
+  /* Resetting column counter */
   meta->current_col = 0;
 
-  // Incrementing row counter.
+  /* Incrementing row counter */
   meta->current_row++;
   return;
 }
 
-//// C API ////
+/* C API */
 
 /* The main method that handles parsing */
 static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
@@ -189,7 +189,7 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   int error;
   size_t i = 0;
 
-  // Setting up some sane defaults
+  /* Setting up some sane defaults */
   meta.row_as_hash = false;
   meta.skip_current_row = false;
   meta.num_columns = 0;
@@ -203,50 +203,50 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   meta.row_defaults = NULL;
   meta.row_conversions = NULL;
   meta.column_names = NULL;
-  meta.result = (VALUE[]){rb_ary_new()}; // []
+  meta.result = (VALUE[]){rb_ary_new()}; /* [] */
 
-  // str is required, options is optional (pun intended)
+  /* str is required, options is optional (pun intended) */
   rb_scan_args(argc, argv, "11", &str, &options);
   csv_string = StringValuePtr(str);
   csv_string_len = strlen(csv_string);
 
-  // options ||= nil
+  /* options ||= nil */
   if (NIL_P(options)) {
     options = rb_hash_new();
   }
 
-  // By default, parsing is strict
+  /* By default, parsing is strict */
   option = rb_hash_aref(options, ID2SYM(rb_intern("nostrict")));
   if (!option || (option == Qnil)) {
     csv_options |= CSV_STRICT;
   }
 
-  // Try to initialize libcsv
+  /* Try to initialize libcsv */
   if (csv_init(&cp, csv_options) == -1) {
     rb_raise(rcsv_parse_error, "Couldn't initialize libcsv");
   }
 
-  // By default, parse as Array of Arrays
+  /* By default, parse as Array of Arrays */
   option = rb_hash_aref(options, ID2SYM(rb_intern("row_as_hash")));
   if (option && (option != Qnil)) {
     meta.row_as_hash = true;
   }
 
-  // :col_sep sets the column separator, default is comma (,)
+  /* :col_sep sets the column separator, default is comma (,) */
   option = rb_hash_aref(options, ID2SYM(rb_intern("col_sep")));
   if (option != Qnil) {
     csv_set_delim(&cp, (unsigned char)*StringValuePtr(option));
   }
 
-  // Specify how many rows to skip from the beginning of CSV
+  /* Specify how many rows to skip from the beginning of CSV */
   option = rb_hash_aref(options, ID2SYM(rb_intern("offset_rows")));
   if (option != Qnil) {
     meta.offset_rows = (size_t)NUM2INT(option);
   }
 
-  // :only_rows is a string mask where row is only parsed
-  // if its fields match those in the passed array.
-  // [nil, nil, "ABC"] skips all rows where 3rd column isn't equal to "ABC"
+  /* :only_rows is a string mask where row is only parsed
+     if its fields match those in the passed array.
+     [nil, nil, "ABC"] skips all rows where 3rd column isn't equal to "ABC" */
   option = rb_hash_aref(options, ID2SYM(rb_intern("only_rows")));
   if (option != Qnil) {
     meta.num_only_rows = (size_t)RARRAY_LEN(option);
@@ -262,8 +262,8 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     }
   }
 
-  // :row_defaults is an array of default values that are assigned to fields containing empty strings
-  // according to matching field positions
+  /* :row_defaults is an array of default values that are assigned to fields containing empty strings
+     according to matching field positions */
   option = rb_hash_aref(options, ID2SYM(rb_intern("row_defaults")));
   if (option != Qnil) {
     meta.num_row_defaults = RARRAY_LEN(option);
@@ -275,16 +275,16 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     }
   }
 
-  // :row_conversions specifies Ruby types that CSV field values should be converted into.
-  // Each char of row_conversions string represents Ruby type for CSV field with matching position.
+  /* :row_conversions specifies Ruby types that CSV field values should be converted into.
+     Each char of row_conversions string represents Ruby type for CSV field with matching position. */
   option = rb_hash_aref(options, ID2SYM(rb_intern("row_conversions"))); 
   if (option != Qnil) {
     meta.num_row_conversions = RSTRING_LEN(option);
     meta.row_conversions = StringValuePtr(option);
   }
 
-  // Column names should be declared explicitly when parsing fields as Hashes
-  if (meta.row_as_hash) { // Only matters for hash results
+  /* Column names should be declared explicitly when parsing fields as Hashes */
+  if (meta.row_as_hash) { /* Only matters for hash results */
     option = rb_hash_aref(options, ID2SYM(rb_intern("column_names"))); 
     if (option == Qnil) {
       rb_raise(rcsv_parse_error, ":row_as_hash requires :column_names to be set.");
@@ -298,14 +298,14 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     }
   }
 
-  // Initializing result with empty Array
+  /* Initializing result with empty Array */
   if (meta.row_as_hash) {
-    rb_ary_push(*(meta.result), rb_hash_new()); // [{}]
+    rb_ary_push(*(meta.result), rb_hash_new()); /* [{}] */
   } else {
-    rb_ary_push(*(meta.result), rb_ary_new()); // [[]]
+    rb_ary_push(*(meta.result), rb_ary_new()); /* [[]] */
   }
 
-  // Actual parsing and error handling
+  /* Actual parsing and error handling */
   if (csv_string_len != csv_parse(&cp, csv_string, strlen(csv_string),
                                   &end_of_field_callback, &end_of_line_callback, &meta)) {
     error = csv_error(&cp);
@@ -327,7 +327,7 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     }
   }
 
-  // Flushing libcsv's buffer and freeing up allocated memory
+  /* Flushing libcsv's buffer and freeing up allocated memory */
   csv_fini(&cp, &end_of_field_callback, &end_of_line_callback, &meta);
   csv_free(&cp);
 
@@ -343,23 +343,23 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     free(meta.column_names);
   }
 
-  // Remove the last row if it's empty. That happens if CSV file ends with a newline.
+  /* Remove the last row if it's empty. That happens if CSV file ends with a newline. */
   if (RARRAY_LEN(rb_ary_entry(*(meta.result), -1)) == 0) {
     rb_ary_pop(*(meta.result));
   }
 
-  // An array of arrays of strings is returned.
+  /* An array of arrays of strings is returned. */
   return *(meta.result);
 }
 
 
 /* Define Ruby API */
 void Init_rcsv(void) {
-  VALUE klass = rb_define_class("Rcsv", rb_cObject); // class Rcsv; end
+  VALUE klass = rb_define_class("Rcsv", rb_cObject); /* class Rcsv; end */
 
-  // Error is initialized through static variable in order to access it from rb_rcsv_raw_parse
+  /* Error is initialized through static variable in order to access it from rb_rcsv_raw_parse */
   rcsv_parse_error = rb_define_class_under(klass, "ParseError", rb_eStandardError);
 
-  // def Rcsv.raw_parse; ...; end
+  /* def Rcsv.raw_parse; ...; end */
   rb_define_singleton_method(klass, "raw_parse", rb_rcsv_raw_parse, -1);
 }
