@@ -42,7 +42,7 @@ Currently, Rcsv only supports CSV parsing. CSV write support is planned.
 
 Quickstart:
 
-  parsed = Rcsv.parse(csv_data)
+    parsed = Rcsv.parse(csv_data)
 
 
 Rcsv class exposes a class method *parse* that accepts a CSV string as its first parameter and options hash as its second parameter.
