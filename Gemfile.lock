@@ -1,0 +1,18 @@
+PATH
+  remote: .
+  specs:
+    rcsv (0.0.5)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rake (0.9.2.2)
+    rake-compiler (0.8.1)
+      rake
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rake-compiler
+  rcsv!
