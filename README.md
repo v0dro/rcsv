@@ -73,7 +73,7 @@ If CSV has a header, :columns keys can be strings that are equal to column names
 
 :columns values are in turn hashes that provide parsing options:
 
-* :alias - Object of any type (though usually a Symbol) that is used to as a key that represents column name when :row_as_hash is set.
+* :alias - Object of any type (though usually a Symbol) that is used as a key that represents column name when :row_as_hash is set.
 * :type - A Ruby Symbol that specifies Ruby data type that CSV cell value should be converted into. Supported types: :int, :float, :string, :bool. :string is the default.
 * :default - Object of any type (though usually of the same type that is specified by :type option). If CSV doesn't have any value for a cell, this default value is used.
 * :match - A string. If set, makes Rcsv skip all the rows where any column doesn't match its :match value. Useful for filtering data.
