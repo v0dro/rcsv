@@ -33,6 +33,12 @@ class RcsvTest < Test::Unit::TestCase
     assert_equal(raw_parsed_tsv_data[888][13], "Dallas\t TX")
   end
 
+  def test_single_item_csv
+    raw_parsed_csv_data = Rcsv.raw_parse("Foo")
+
+    assert_equal(raw_parsed_csv_data, [["Foo"]])
+  end
+
   def test_broken_data
     broken_data = @csv_data.sub(/"/, '')
 

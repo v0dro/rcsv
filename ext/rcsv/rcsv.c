@@ -344,7 +344,8 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   }
 
   /* Remove the last row if it's empty. That happens if CSV file ends with a newline. */
-  if (RARRAY_LEN(rb_ary_entry(*(meta.result), -1)) == 0) {
+  if (RARRAY_LEN(*(meta.result)) && /* meta.result.size != 0 */
+      RARRAY_LEN(rb_ary_entry(*(meta.result), -1)) == 0) {
     rb_ary_pop(*(meta.result));
   }
 
