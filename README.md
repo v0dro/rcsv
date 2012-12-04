@@ -48,6 +48,7 @@ Quickstart:
 
 
 Rcsv class exposes a class method *parse* that accepts a CSV string as its first parameter and options hash as its second parameter.
+If block is passed, Rcsv sequentially yields every parsed line to it and the #parse method itself returns nil.
 
 
 Options supported:
@@ -96,6 +97,10 @@ When :row_as_hash is disabled, return value is represented as array of arrays.
 ### :only_listed_columns
 A boolean flag. If enabled, only parses columns that are listed in :columns. Disabled by default.
 
+### :buffer_size
+An integer. Default is 1MiB (1024 * 1024).
+Specifies a number of bytes that are read at once, thus allowing to read drectly from IO-like objects (files, sockets etc).
+
 
 ## Examples
 
@@ -132,12 +137,29 @@ The result would look like this:
       [ nil, 0, "Vacuum" ]
     ]
 
+And here is an example of passing a block:
+
+    Rcsv.parse(some_csv) { |row|
+      puts row.inspect
+    }
+
+That would display contents of each row without needing to put the whole parsed result array to memory:
+
+    ["a", "b", "c", "d", "e", "f"]
+    ["1", "2", "3", "4", "5", "6"]
+
+
+This way it is possible to read from a File directly, with a 20MiB buffer and parse lines one by one:
+
+    Rcsv.parse(File.open('/some/file.csv'), :buffer_size => 20 * 1024 * 1024) { |row|
+      puts row.inspect
+    }
+
 
 ## To do
 
 * More specs for boolean values
 * Specs for Ruby parse
-* Add custom Ruby callbacks (if block is passed)
 * Add CSV write support
 
 

@@ -30,6 +30,7 @@ struct rcsv_metadata {
   size_t current_col;         /* Current column's index */
   size_t current_row;         /* Current row's index */
 
+  VALUE last_entry;           /* A pointer to the last entry that's going to be appended to result */
   VALUE * result;             /* A pointer to the parsed data */
 };
 
@@ -41,7 +42,6 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
   struct rcsv_metadata * meta = (struct rcsv_metadata *) data;
   char row_conversion = 0;
   VALUE parsed_field;
-  VALUE last_entry = rb_ary_entry(*(meta->result), -1); /* result.last */
 
   /* No need to parse anything until the end of the line if skip_current_row is set */
   if (meta->skip_current_row) {
@@ -136,10 +136,10 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
           (int)meta->num_columns
         );
       } else {
-        rb_hash_aset(last_entry, meta->column_names[meta->current_col], parsed_field);
+        rb_hash_aset(meta->last_entry, meta->column_names[meta->current_col], parsed_field); /* last_entry[column_names[current_col]] = field */
       }
     } else { /* Parse into Array */
-      rb_ary_push(last_entry, parsed_field); /* result << field */
+      rb_ary_push(meta->last_entry, parsed_field); /* last_entry << field */
     }
   }
 
@@ -154,16 +154,22 @@ void end_of_line_callback(int last_char, void * data) {
 
   /* If filters didn't match, current row parsing is reverted */
   if (meta->skip_current_row) {
-    rb_ary_pop(*(meta->result)); /* result.pop */
+    /* Do we wanna GC? */
     meta->skip_current_row = false;
+  } else {
+    if (rb_block_given_p()) { /* STREAMING */
+      rb_yield(meta->last_entry);
+    } else {
+      rb_ary_push(*(meta->result), meta->last_entry);
+    }
   }
 
-  /* Add a new empty array/hash for the next line unless EOF reached */
+  /* Re-initialize last_entry unless EOF reached */
   if (last_char != -1) {
     if (meta->row_as_hash) {
-      rb_ary_push(*(meta->result), rb_hash_new()); /* result << {} */
+      meta->last_entry = rb_hash_new(); /* {} */
     } else {
-      rb_ary_push(*(meta->result), rb_ary_new()); /* result << [] */
+      meta->last_entry = rb_ary_new(); /* [] */
     }
   }
 
@@ -175,12 +181,19 @@ void end_of_line_callback(int last_char, void * data) {
   return;
 }
 
+void custom_end_of_line_callback(int last_char, void * data) {
+  struct rcsv_metadata * meta = (struct rcsv_metadata *) data;
+
+  if (!meta->skip_current_row) {
+  }
+}
+
 /* C API */
 
 /* The main method that handles parsing */
 static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   struct rcsv_metadata meta;
-  VALUE str, options, option;
+  VALUE csvio, csvstr, buffer_size, options, option;
 
   struct csv_parser cp;
   unsigned char csv_options = CSV_STRICT_FINI | CSV_APPEND_NULL;
@@ -205,15 +218,15 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   meta.column_names = NULL;
   meta.result = (VALUE[]){rb_ary_new()}; /* [] */
 
-  /* str is required, options is optional (pun intended) */
-  rb_scan_args(argc, argv, "11", &str, &options);
-  csv_string = StringValuePtr(str);
-  csv_string_len = strlen(csv_string);
+  /* csvio is required, options is optional (pun intended) */
+  rb_scan_args(argc, argv, "11", &csvio, &options);
 
   /* options ||= nil */
   if (NIL_P(options)) {
     options = rb_hash_new();
   }
+
+  buffer_size = rb_hash_aref(options, ID2SYM(rb_intern("buffer_size")));
 
   /* By default, parsing is strict */
   option = rb_hash_aref(options, ID2SYM(rb_intern("nostrict")));
@@ -283,12 +296,14 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     meta.row_conversions = StringValuePtr(option);
   }
 
-  /* Column names should be declared explicitly when parsing fields as Hashes */
+ /* Column names should be declared explicitly when parsing fields as Hashes */
   if (meta.row_as_hash) { /* Only matters for hash results */
     option = rb_hash_aref(options, ID2SYM(rb_intern("column_names"))); 
     if (option == Qnil) {
       rb_raise(rcsv_parse_error, ":row_as_hash requires :column_names to be set.");
     } else {
+      meta.last_entry = rb_hash_new();
+
       meta.num_columns = (size_t)RARRAY_LEN(option);
       meta.column_names = (VALUE*)malloc(meta.num_columns * sizeof(VALUE*));
 
@@ -296,34 +311,37 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
         meta.column_names[i] = rb_ary_entry(option, i);
       }
     }
-  }
-
-  /* Initializing result with empty Array */
-  if (meta.row_as_hash) {
-    rb_ary_push(*(meta.result), rb_hash_new()); /* [{}] */
   } else {
-    rb_ary_push(*(meta.result), rb_ary_new()); /* [[]] */
+    meta.last_entry = rb_ary_new();
   }
 
-  /* Actual parsing and error handling */
-  if (csv_string_len != csv_parse(&cp, csv_string, strlen(csv_string),
-                                  &end_of_field_callback, &end_of_line_callback, &meta)) {
-    error = csv_error(&cp);
-    switch(error) {
-      case CSV_EPARSE:
-        rb_raise(rcsv_parse_error, "Error when parsing malformed data");
+  while(true) {
+    csvstr = rb_funcall(csvio, rb_intern("read"), 1, buffer_size);
+    if ((csvstr == Qnil) || (RSTRING_LEN(csvstr) == 0)) { break; }
+
+    csv_string = StringValuePtr(csvstr);
+    csv_string_len = strlen(csv_string);
+
+    /* Actual parsing and error handling */
+    if (csv_string_len != csv_parse(&cp, csv_string, csv_string_len,
+                                    &end_of_field_callback, &end_of_line_callback, &meta)) {
+      error = csv_error(&cp);
+      switch(error) {
+        case CSV_EPARSE:
+          rb_raise(rcsv_parse_error, "Error when parsing malformed data");
+          break;
+        case CSV_ENOMEM:
+          rb_raise(rcsv_parse_error, "No memory");
+          break;
+        case CSV_ETOOBIG:
+          rb_raise(rcsv_parse_error, "Field data is too large");
+          break;
+        case CSV_EINVALID:
+          rb_raise(rcsv_parse_error, "%s", (const char *)csv_strerror(error));
         break;
-      case CSV_ENOMEM:
-        rb_raise(rcsv_parse_error, "No memory");
-        break;
-      case CSV_ETOOBIG:
-        rb_raise(rcsv_parse_error, "Field data is too large");
-        break;
-      case CSV_EINVALID:
-        rb_raise(rcsv_parse_error, "%s", (const char *)csv_strerror(error));
-      break;
-      default:
-        rb_raise(rcsv_parse_error, "Failed due to unknown reason");
+        default:
+          rb_raise(rcsv_parse_error, "Failed due to unknown reason");
+      }
     }
   }
 
@@ -349,8 +367,11 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     rb_ary_pop(*(meta.result));
   }
 
-  /* An array of arrays of strings is returned. */
-  return *(meta.result);
+  if (rb_block_given_p()) {
+    return Qnil; /* STREAMING */
+  } else {
+    return *(meta.result); /* Return accumulated result */
+  }
 }
 
 

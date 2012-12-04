@@ -1,8 +1,10 @@
 require "rcsv/rcsv"
 require "rcsv/version"
 
+require "stringio"
+
 class Rcsv
-  def self.parse(csv_data, options = {})
+  def self.parse(csv_data, options = {}, &block)
     #options = {
       #:column_separator => "\t",
       #:only_listed_columns => true,
@@ -25,16 +27,26 @@ class Rcsv
     raw_options[:col_sep] = options[:column_separator] && options[:column_separator][0] || ','
     raw_options[:offset_rows] = options[:offset_rows] || 0
     raw_options[:nostrict] = options[:nostrict]
+    raw_options[:buffer_size] = options[:buffer_size] || 1024 * 1024 # 1 MiB
+
+    if csv_data.is_a?(String)
+      csv_data = StringIO.new(csv_data)
+    elsif !(csv_data.respond_to?(:lines) && csv_data.respond_to?(:read))
+      inspected_csv_data = csv_data.inspect
+      raise ParseError.new("Supplied CSV object #{inspected_csv_data[0..127]}#{inspected_csv_data.size > 128 ? '...' : ''} is neither String nor looks like IO object.")
+    end
+
+    initial_position = csv_data.pos
 
     case options[:header]
     when :use
-      header = self.raw_parse(csv_data.lines.first, raw_options).first
+      header = self.raw_parse(StringIO.new(csv_data.lines.first), raw_options).first
       raw_options[:offset_rows] += 1
     when :skip
       header = (0..(csv_data.lines.first.split(raw_options[:col_sep]).count)).to_a
       raw_options[:offset_rows] += 1
     when :none
-     header = (0..(csv_data.lines.first.split(raw_options[:col_sep]).count)).to_a
+      header = (0..(csv_data.lines.first.split(raw_options[:col_sep]).count)).to_a
     end
 
     raw_options[:row_as_hash] = options[:row_as_hash] # Setting after header parsing
@@ -86,6 +98,7 @@ class Rcsv
       raw_options[:row_conversions] = row_conversions
     end
 
-    return self.raw_parse(csv_data, raw_options)
+    csv_data.pos = initial_position
+    return self.raw_parse(csv_data, raw_options, &block)
   end
 end
