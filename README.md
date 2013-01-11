@@ -61,7 +61,7 @@ A single-character string that is used as a separator. Default is ",".
 
 A boolean flag. When enabled, allows to parse oddly quoted CSV data without exceptions being raised. Disabled by default.
 
-Anything that does not conform to http://www.ietf.org/rfc/rfc4180.txt should better be parsed with this option enabled.
+Anything that does not conform to http://www.creativyst.com/Doc/Articles/CSV/CSV01.htm should better be parsed with this option enabled.
 
 ### :parse_empty_fields_as
 
