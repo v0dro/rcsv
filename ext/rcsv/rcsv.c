@@ -12,6 +12,7 @@ static VALUE rcsv_parse_error; /* class Rcsv::ParseError << StandardError; end *
 struct rcsv_metadata {
   /* Derived from user-specified options */
   bool row_as_hash;           /* Used to return array of hashes rather than array of arrays */
+  bool empty_field_is_nil;   /* Do we convert empty fields to nils? */
   size_t offset_rows;         /* Number of rows to skip before parsing */
 
   char * row_conversions;     /* A pointer to string/array of row conversions char specifiers */
@@ -56,6 +57,7 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
 
   /* Filter by string row values listed in meta->only_rows */
   if ((meta->only_rows != NULL) &&
+      (field_str != NULL) && /* TODO: What if we want to filter out NULLs? */
       (meta->current_col < meta->num_only_rows) &&
       (meta->only_rows[meta->current_col] != NULL) &&
       (strcmp(meta->only_rows[meta->current_col], field_str))) {
@@ -74,8 +76,12 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
       /* Assigning appropriate default value if applicable. */
       if (meta->current_col < meta->num_row_defaults) {
         parsed_field = meta->row_defaults[meta->current_col];
-      } else { /* By default, default is nil */
-        parsed_field = Qnil;
+      } else { /* It depends on empty_field_is_nil if we convert empty strings to nils */
+        if (meta->empty_field_is_nil || field_str == NULL) {
+          parsed_field = Qnil;
+        } else {
+          parsed_field = rb_str_new2("");
+        }
       }
     } else {
       if (meta->current_col < meta->num_row_conversions) {
@@ -204,6 +210,7 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
 
   /* Setting up some sane defaults */
   meta.row_as_hash = false;
+  meta.empty_field_is_nil = false;
   meta.skip_current_row = false;
   meta.num_columns = 0;
   meta.current_col = 0;
@@ -232,6 +239,18 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   option = rb_hash_aref(options, ID2SYM(rb_intern("nostrict")));
   if (!option || (option == Qnil)) {
     csv_options |= CSV_STRICT;
+  }
+
+  /* By default, empty strings are treated as Nils and quoted empty strings are treated as empty Ruby strings */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("parse_empty_fields_as")));
+  if ((option == Qnil) || (option == ID2SYM(rb_intern("nil_or_string")))) {
+    csv_options |= CSV_EMPTY_IS_NULL;
+  } else if (option == ID2SYM(rb_intern("nil"))) {
+    meta.empty_field_is_nil = true;
+  } else if (option == ID2SYM(rb_intern("string"))) {
+    meta.empty_field_is_nil = false;
+  } else {
+    rb_raise(rcsv_parse_error, "The only valid options for :parse_empty_fields_as are :nil, :string and :nil_or_string, but %s was supplied.", RSTRING_PTR(rb_inspect(option)));
   }
 
   /* Try to initialize libcsv */

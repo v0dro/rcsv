@@ -27,6 +27,7 @@ class Rcsv
     raw_options[:col_sep] = options[:column_separator] && options[:column_separator][0] || ','
     raw_options[:offset_rows] = options[:offset_rows] || 0
     raw_options[:nostrict] = options[:nostrict]
+    raw_options[:parse_empty_fields_as] = options[:parse_empty_fields_as]
     raw_options[:buffer_size] = options[:buffer_size] || 1024 * 1024 # 1 MiB
 
     if csv_data.is_a?(String)

@@ -4,7 +4,7 @@
 
 Rcsv is a fast CSV parsing library for MRI Ruby. Tested on REE 1.8.7 and Ruby 1.9.3.
 
-Contrary to many other gems that implement their own parsers, Rcsv uses libcsv 3.0.2 (http://sourceforge.net/projects/libcsv/). As long as libcsv's API is stable, getting Rcsv to use newer libcsv version is as simple as updating two files (csv.h and libcsv.c).
+Contrary to many other gems that implement their own parsers, Rcsv uses libcsv 3.0.3 (http://sourceforge.net/projects/libcsv/). As long as libcsv's API is stable, getting Rcsv to use newer libcsv version is as simple as updating two files (csv.h and libcsv.c).
 
 ## Benchmarks
                    user     system      total        real
@@ -62,6 +62,18 @@ A single-character string that is used as a separator. Default is ",".
 A boolean flag. When enabled, allows to parse oddly quoted CSV data without exceptions being raised. Disabled by default.
 
 Anything that does not conform to http://www.ietf.org/rfc/rfc4180.txt should better be parsed with this option enabled.
+
+### :parse_empty_fields_as
+
+A Ruby symbol that specifies how empty CSV fields should be processed. Accepted values:
+
+* :nil_or_string (default) - If empty field is quoted, it is parsed as empty Ruby string. If empty field is not quoted, it is parsed as Nil.
+
+* :nil - Always parse as Nil.
+
+* :string - Always parse as empty string.
+
+This option doesn't affect defaults processing: all empty fields are replaced with default values if the latter are provided (via per-column :default).
 
 ### :offset_rows
 

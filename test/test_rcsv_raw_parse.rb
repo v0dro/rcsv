@@ -236,4 +236,32 @@ class RcsvTest < Test::Unit::TestCase
       'booleator' => 't'
     }, raw_parsed_csv_data[1])
   end
+
+  def test_nils_and_empty_strings_default
+    raw_parsed_csv_data = Rcsv.raw_parse(StringIO.new(",\"\",,   ,,\n,,  \"\", \"\" ,,"))
+
+    assert_equal([nil, '', nil, nil, nil, nil], raw_parsed_csv_data[0])
+    assert_equal([nil, nil, '', '', nil, nil], raw_parsed_csv_data[1])
+  end
+
+  def test_nils_and_empty_strings_nil
+    raw_parsed_csv_data = Rcsv.raw_parse(StringIO.new(",\"\",,   ,,\n,,  \"\", \"\" ,,"), :parse_empty_fields_as => :nil)
+
+    assert_equal([nil, nil, nil, nil, nil, nil], raw_parsed_csv_data[0])
+    assert_equal([nil, nil, nil, nil, nil, nil], raw_parsed_csv_data[1])
+  end
+
+  def test_nils_and_empty_strings_string
+    raw_parsed_csv_data = Rcsv.raw_parse(StringIO.new(",\"\",,   ,,\n,,  \"\", \"\" ,,"), :parse_empty_fields_as => :string)
+
+    assert_equal(['', '', '', '', '', ''], raw_parsed_csv_data[0])
+    assert_equal(['', '', '', '', '', ''], raw_parsed_csv_data[1])
+  end
+
+  def test_nils_and_empty_strings_nil_or_string
+    raw_parsed_csv_data = Rcsv.raw_parse(StringIO.new(",\"\",,   ,,\n,,  \"\", \"\" ,,"), :parse_empty_fields_as => :nil_or_string)
+
+    assert_equal([nil, '', nil, nil, nil, nil], raw_parsed_csv_data[0])
+    assert_equal([nil, nil, '', '', nil, nil], raw_parsed_csv_data[1])
+  end
 end
