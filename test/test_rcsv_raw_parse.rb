@@ -1,7 +1,7 @@
 require 'test/unit'
 require 'rcsv'
 
-class RcsvTest < Test::Unit::TestCase
+class RcsvRawParseTest < Test::Unit::TestCase
   def setup
     @csv_data = File.open('test/test_rcsv.csv')
   end

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rcsv (0.0.8)
+    rcsv (0.0.9)
 
 GEM
   remote: https://rubygems.org/

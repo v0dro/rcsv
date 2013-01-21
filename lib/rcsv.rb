@@ -4,6 +4,11 @@ require "rcsv/version"
 require "stringio"
 
 class Rcsv
+
+  attr_reader :write_options
+
+  BOOLEAN_FALSE = [nil, false, 0, 'f', 'false']
+
   def self.parse(csv_data, options = {}, &block)
     #options = {
       #:column_separator => "\t",
@@ -101,5 +106,57 @@ class Rcsv
 
     csv_data.pos = initial_position
     return self.raw_parse(csv_data, raw_options, &block)
+  end
+
+  def initialize(write_options = {})
+    @write_options = write_options
+    @write_options[:column_separator] ||= ','
+    @write_options[:newline_delimiter] ||= "\r\n" # Making Excel happy...
+    @write_options[:header] ||= false
+  end
+
+  def write(io, &block)
+    io.write generate_header if @write_options[:header]
+    while row = yield
+      io.write generate_row(row)
+    end
+  end
+
+  def generate_header
+    return @write_options[:columns].map { |c|
+      c[:name].to_s
+    }.join(@write_options[:column_separator]) << @write_options[:newline_delimiter]
+  end
+
+  def generate_row(row)
+    column_separator = @write_options[:column_separator]
+    csv_row = ''
+    max_index = row.size - 1
+
+    row.each_with_index do |field, index|
+      unquoted_field = process(field, @write_options[:columns][index])
+      # TODO: a better quoting
+      csv_row << (unquoted_field.match(/,/) ? "\"#{unquoted_field}\"" : unquoted_field)
+      csv_row << column_separator unless index == max_index
+    end
+
+    return csv_row << @write_options[:newline_delimiter]
+  end
+
+  protected
+
+  def process(field, column_options)
+    return case column_options[:formatter]
+    when :strftime
+      format = column_options[:format] || "%Y-%m-%d %H:%M:%S %z"
+      field.strftime(format)
+    when :printf
+      format = column_options[:format] || "%s"
+      sprintf(format, field)
+    when :boolean
+      BOOLEAN_FALSE.include?(field.respond_to?(:downcase) ? field.downcase : field) ? 'false' : 'true'
+    else
+      field.to_s
+    end
   end
 end

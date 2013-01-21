@@ -1,3 +1,6 @@
+Version 0.0.9
+  * preliminary write support
+
 Version 0.0.8
   * libcsv upgraded to 3.0.3
   * :parse_empty_fields_as option added
