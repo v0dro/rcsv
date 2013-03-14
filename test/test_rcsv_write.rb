@@ -1,5 +1,6 @@
 require 'test/unit'
 require 'rcsv'
+require 'date'
 
 class RcsvWriteTest < Test::Unit::TestCase
   def setup
