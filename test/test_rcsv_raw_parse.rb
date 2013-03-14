@@ -9,47 +9,47 @@ class RcsvRawParseTest < Test::Unit::TestCase
   def test_rcsv
     raw_parsed_csv_data = Rcsv.raw_parse(@csv_data)
 
-    assert_equal(raw_parsed_csv_data[0][2], 'EDADEDADEDADEDADEDADEDAD')
-    assert_equal(raw_parsed_csv_data[0][13], '$$$908080')
-    assert_equal(raw_parsed_csv_data[0][14], '"')
-    assert_equal(raw_parsed_csv_data[0][15], 'true/false')
-    assert_equal(raw_parsed_csv_data[0][16], nil)
-    assert_equal(raw_parsed_csv_data[9][2], nil)
-    assert_equal(raw_parsed_csv_data[3][6], '""C81E-=; **ECCB; .. 89')
-    assert_equal(raw_parsed_csv_data[888][13], 'Dallas, TX')
+    assert_equal('EDADEDADEDADEDADEDADEDAD', raw_parsed_csv_data[0][2])
+    assert_equal('$$$908080', raw_parsed_csv_data[0][13])
+    assert_equal('"', raw_parsed_csv_data[0][14])
+    assert_equal('true/false', raw_parsed_csv_data[0][15])
+    assert_equal(nil, raw_parsed_csv_data[0][16])
+    assert_equal(nil, raw_parsed_csv_data[9][2])
+    assert_equal('""C81E-=; **ECCB; .. 89', raw_parsed_csv_data[3][6])
+    assert_equal('Dallas, TX', raw_parsed_csv_data[888][13])
   end
 
   def test_rcsv_col_sep
     tsv_data = StringIO.new(@csv_data.read.tr(",", "\t"))
     raw_parsed_tsv_data = Rcsv.raw_parse(tsv_data, :col_sep => "\t")
 
-    assert_equal(raw_parsed_tsv_data[0][2], 'EDADEDADEDADEDADEDADEDAD')
-    assert_equal(raw_parsed_tsv_data[0][13], '$$$908080')
-    assert_equal(raw_parsed_tsv_data[0][14], '"')
-    assert_equal(raw_parsed_tsv_data[0][15], 'true/false')
-    assert_equal(raw_parsed_tsv_data[0][16], nil)
-    assert_equal(raw_parsed_tsv_data[9][2], nil)
-    assert_equal(raw_parsed_tsv_data[3][6], '""C81E-=; **ECCB; .. 89')
-    assert_equal(raw_parsed_tsv_data[888][13], "Dallas\t TX")
+    assert_equal('EDADEDADEDADEDADEDADEDAD', raw_parsed_tsv_data[0][2])
+    assert_equal('$$$908080', raw_parsed_tsv_data[0][13])
+    assert_equal('"', raw_parsed_tsv_data[0][14])
+    assert_equal('true/false', raw_parsed_tsv_data[0][15])
+    assert_equal(nil, raw_parsed_tsv_data[0][16])
+    assert_equal(nil, raw_parsed_tsv_data[9][2])
+    assert_equal('""C81E-=; **ECCB; .. 89', raw_parsed_tsv_data[3][6])
+    assert_equal("Dallas\t TX", raw_parsed_tsv_data[888][13])
   end
 
   def test_buffer_size
     raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :buffer_size => 10)
 
-    assert_equal(raw_parsed_csv_data[0][2], 'EDADEDADEDADEDADEDADEDAD')
-    assert_equal(raw_parsed_csv_data[0][13], '$$$908080')
-    assert_equal(raw_parsed_csv_data[0][14], '"')
-    assert_equal(raw_parsed_csv_data[0][15], 'true/false')
-    assert_equal(raw_parsed_csv_data[0][16], nil)
-    assert_equal(raw_parsed_csv_data[9][2], nil)
-    assert_equal(raw_parsed_csv_data[3][6], '""C81E-=; **ECCB; .. 89')
-    assert_equal(raw_parsed_csv_data[888][13], 'Dallas, TX')
+    assert_equal('EDADEDADEDADEDADEDADEDAD', raw_parsed_csv_data[0][2])
+    assert_equal('$$$908080', raw_parsed_csv_data[0][13])
+    assert_equal('"', raw_parsed_csv_data[0][14])
+    assert_equal('true/false', raw_parsed_csv_data[0][15])
+    assert_equal(nil, raw_parsed_csv_data[0][16])
+    assert_equal(nil, raw_parsed_csv_data[9][2])
+    assert_equal('""C81E-=; **ECCB; .. 89', raw_parsed_csv_data[3][6])
+    assert_equal('Dallas, TX', raw_parsed_csv_data[888][13])
   end
 
   def test_single_item_csv
     raw_parsed_csv_data = Rcsv.raw_parse(StringIO.new("Foo"))
 
-    assert_equal(raw_parsed_csv_data, [["Foo"]])
+    assert_equal([["Foo"]], raw_parsed_csv_data)
   end
 
   def test_broken_data
@@ -86,42 +86,42 @@ class RcsvRawParseTest < Test::Unit::TestCase
   def test_only_rows_with_nil_beginning
     raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => [nil, nil, nil, [123, 96], nil], :row_conversions => 'sssi')
 
-    assert_equal(raw_parsed_csv_data[1][0], 'C3B87A6B')
-    assert_equal(raw_parsed_csv_data[0][2], nil)
-    assert_equal(raw_parsed_csv_data[3][3], 96)
-    assert_equal(raw_parsed_csv_data.size, 5)
+    assert_equal('C3B87A6B', raw_parsed_csv_data[1][0])
+    assert_equal(nil, raw_parsed_csv_data[0][2])
+    assert_equal(96, raw_parsed_csv_data[3][3])
+    assert_equal(5, raw_parsed_csv_data.size)
   end
 
   def test_row_defaults
     raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :row_defaults => [nil, nil, :booya, nil, 'never ever'])
 
-    assert_equal(raw_parsed_csv_data[0][2], 'EDADEDADEDADEDADEDADEDAD')
-    assert_equal(raw_parsed_csv_data[1][2], :booya)
-    assert_equal(raw_parsed_csv_data[1][0], 'C85A5B9F')
-    assert_equal(raw_parsed_csv_data[2][4], '9134')
+    assert_equal('EDADEDADEDADEDADEDADEDAD', raw_parsed_csv_data[0][2])
+    assert_equal(:booya, raw_parsed_csv_data[1][2])
+    assert_equal('C85A5B9F', raw_parsed_csv_data[1][0])
+    assert_equal('9134', raw_parsed_csv_data[2][4])
   end
 
   def test_row_conversions
     raw_parsed_csv_data = Rcsv.raw_parse(StringIO.new(@csv_data.each_line.to_a[1..-1].join), # skipping string headers
                                          :row_conversions => 'sisiisssssfsissf')
 
-    assert_equal(raw_parsed_csv_data[0][2], nil)
-    assert_equal(raw_parsed_csv_data[0][3], 96)
-    assert_equal(raw_parsed_csv_data[0][8], '908e')
-    assert_equal(raw_parsed_csv_data[1][15], -9.549296585513721)
-    assert_equal(raw_parsed_csv_data[3][5], '2015-12-22')
+    assert_equal(nil, raw_parsed_csv_data[0][2])
+    assert_equal(96, raw_parsed_csv_data[0][3])
+    assert_equal('908e', raw_parsed_csv_data[0][8])
+    assert_equal(-9.549296585513721, raw_parsed_csv_data[1][15])
+    assert_equal('2015-12-22', raw_parsed_csv_data[3][5])
   end
 
   def test_row_conversions_with_column_exclusions
     raw_parsed_csv_data = Rcsv.raw_parse(StringIO.new(@csv_data.each_line.to_a[1..-1].join), # skipping string headers
                                          :row_conversions => 's f issss fsis fb')
 
-    assert_equal(raw_parsed_csv_data[0][1], nil)
-    assert_equal(raw_parsed_csv_data[0][2], 6838)
-    assert_equal(raw_parsed_csv_data[0][8], '20efe749-50fe-4b6a-a603-7f9cd1dc6c6d')
-    assert_equal(raw_parsed_csv_data[0][12], true)
-    assert_equal(raw_parsed_csv_data[0][13], nil)
-    assert_equal(raw_parsed_csv_data[4][3], '2020-12-09')
+    assert_equal(nil, raw_parsed_csv_data[0][1])
+    assert_equal(6838, raw_parsed_csv_data[0][2])
+    assert_equal('20efe749-50fe-4b6a-a603-7f9cd1dc6c6d', raw_parsed_csv_data[0][8])
+    assert_equal(true, raw_parsed_csv_data[0][12])
+    assert_equal(nil, raw_parsed_csv_data[0][13])
+    assert_equal('2020-12-09', raw_parsed_csv_data[4][3])
   end
 
   def test_offset_rows
@@ -181,14 +181,14 @@ class RcsvRawParseTest < Test::Unit::TestCase
     }
 
     assert_equal(nil, result)
-    assert_equal(raw_parsed_csv_data[0][2], 'EDADEDADEDADEDADEDADEDAD')
-    assert_equal(raw_parsed_csv_data[0][13], '$$$908080')
-    assert_equal(raw_parsed_csv_data[0][14], '"')
-    assert_equal(raw_parsed_csv_data[0][15], 'true/false')
-    assert_equal(raw_parsed_csv_data[0][16], nil)
-    assert_equal(raw_parsed_csv_data[9][2], nil)
-    assert_equal(raw_parsed_csv_data[3][6], '""C81E-=; **ECCB; .. 89')
-    assert_equal(raw_parsed_csv_data[888][13], 'Dallas, TX')
+    assert_equal('EDADEDADEDADEDADEDADEDAD', raw_parsed_csv_data[0][2])
+    assert_equal('$$$908080', raw_parsed_csv_data[0][13])
+    assert_equal('"', raw_parsed_csv_data[0][14])
+    assert_equal('true/false', raw_parsed_csv_data[0][15])
+    assert_equal(nil, raw_parsed_csv_data[0][16])
+    assert_equal(nil, raw_parsed_csv_data[9][2])
+    assert_equal('""C81E-=; **ECCB; .. 89', raw_parsed_csv_data[3][6])
+    assert_equal('Dallas, TX', raw_parsed_csv_data[888][13])
   end
 
   def test_hash_block_streaming
