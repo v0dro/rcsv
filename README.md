@@ -40,7 +40,7 @@ First, check out the master branch. Then cd there and run:
 
 ## Usage
 
-Currently, Rcsv only supports CSV parsing. CSV write support is planned.
+Currently, Rcsv only supports CSV parsing. CSV write support is under works.
 
 Quickstart:
 
@@ -89,7 +89,7 @@ If CSV has a header, :columns keys can be strings that are equal to column names
 * :alias - Object of any type (though usually a Symbol) that is used as a key that represents column name when :row_as_hash is set.
 * :type - A Ruby Symbol that specifies Ruby data type that CSV cell value should be converted into. Supported types: :int, :float, :string, :bool. :string is the default.
 * :default - Object of any type (though usually of the same type that is specified by :type option). If CSV doesn't have any value for a cell, this default value is used.
-* :match - A string. If set, makes Rcsv skip all the rows where any column doesn't match its :match value. Useful for filtering data.
+* :match - An array of Ruby objects of supported type (see :type). If set, makes Rcsv skip all the rows where any column isn't included in its :match value. Useful for filtering data.
 
 
 ### :header
@@ -116,13 +116,13 @@ Specifies a number of bytes that are read at once, thus allowing to read drectly
 
 ## Examples
 
-This example parses a 3-column CSV file and only returns parsed rows where "Age" values are set to "35".
+This example parses a 3-column CSV file and only returns parsed rows where "Age" values are parsed to 35, 36 or 37.
 
     Rcsv.parse some_csv, :row_as_hash => true,
                          :columns => {
       'First Name' => { :alias => :first_name, :default => "Unknown" },
       'Last Name' => { :alias => :last_name, :default => "Unknown"},
-      'Age' => { :alias => :age, :type => :int, :match => "35"}
+      'Age' => { :alias => :age, :type => :int, :match => [35, 36, 37]]
     }
 
 The result would look like this:
@@ -170,9 +170,10 @@ This way it is possible to read from a File directly, with a 20MiB buffer and pa
 
 ## To do
 
-* More specs for boolean values
-* Specs for Ruby parse
-* Add CSV write support
+* Fix those tiny memory leaks that may happen when parse-time exceptions are raised
+* More tests for boolean values
+* More tests for Ruby parse
+* Finish CSV write support
 
 
 ## Contributing
