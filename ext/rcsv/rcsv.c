@@ -16,7 +16,7 @@ struct rcsv_metadata {
   size_t offset_rows;         /* Number of rows to skip before parsing */
 
   char * row_conversions;     /* A pointer to string/array of row conversions char specifiers */
-  char ** only_rows;          /* A pointer to array of strings for only_rows filter */
+  VALUE * only_rows;          /* A pointer to array of row filters */
   VALUE * row_defaults;       /* A pointer to array of row defaults */
   VALUE * column_names;       /* A pointer to array of column names to be used with hashes */
 
@@ -51,16 +51,6 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
 
   /* Skip the row if its position is less than specifed offset */
   if (meta->current_row < meta->offset_rows) {
-    meta->skip_current_row = true;
-    return;
-  }
-
-  /* Filter by string row values listed in meta->only_rows */
-  if ((meta->only_rows != NULL) &&
-      (field_str != NULL) && /* TODO: What if we want to filter out NULLs? */
-      (meta->current_col < meta->num_only_rows) &&
-      (meta->only_rows[meta->current_col] != NULL) &&
-      (strcmp(meta->only_rows[meta->current_col], field_str))) {
     meta->skip_current_row = true;
     return;
   }
@@ -128,6 +118,15 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
       } else { /* No conversion happens */
         parsed_field = rb_str_new(field_str, field_size); /* field */
       }
+    }
+
+    /* Filter by row values listed in meta->only_rows */
+    if ((meta->only_rows != NULL) &&
+        (meta->current_col < meta->num_only_rows) &&
+        (meta->only_rows[meta->current_col] != Qnil) &&
+        (!rb_ary_includes(meta->only_rows[meta->current_col], parsed_field))) {
+      meta->skip_current_row = true;
+      return;
     }
 
     /* Assign the value to appropriate hash key if parsing into Hash */
@@ -276,20 +275,42 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     meta.offset_rows = (size_t)NUM2INT(option);
   }
 
-  /* :only_rows is a string mask where row is only parsed
+  /* :only_rows is a list of values where row is only parsed
      if its fields match those in the passed array.
-     [nil, nil, "ABC"] skips all rows where 3rd column isn't equal to "ABC" */
+     [nil, nil, ["ABC", nil, 1]] skips all rows where 3rd column isn't equal to "ABC", nil or 1 */
   option = rb_hash_aref(options, ID2SYM(rb_intern("only_rows")));
   if (option != Qnil) {
     meta.num_only_rows = (size_t)RARRAY_LEN(option);
-    meta.only_rows = (char **)malloc(meta.num_only_rows * sizeof(char *));
+    meta.only_rows = (VALUE *)malloc(meta.num_only_rows * sizeof(VALUE));
 
     for (i = 0; i < meta.num_only_rows; i++) {
       VALUE only_row = rb_ary_entry(option, i);
       if (only_row == Qnil) {
-        meta.only_rows[i] = NULL;
+        meta.only_rows[i] = Qnil;
+      } else if (TYPE(only_row) == T_ARRAY) {
+        size_t j;
+        for (j = 0; j < (size_t)RARRAY_LEN(only_row); j++) {
+          switch (TYPE(rb_ary_entry(only_row, j))) {
+            case T_NIL:
+            case T_TRUE:
+            case T_FALSE:
+            case T_FLOAT:
+            case T_FIXNUM:
+            case T_BIGNUM:
+            case T_REGEXP:
+            case T_STRING:
+              break;
+            default:
+              rb_raise(rcsv_parse_error,
+                ":only_rows can only accept nil or Array consisting of String, boolean or nil elements, but %s was provided.",
+                RSTRING_PTR(rb_inspect(only_row)));
+          }
+        }
+        meta.only_rows[i] = only_row;
       } else {
-        meta.only_rows[i] = StringValueCStr(only_row);
+        rb_raise(rcsv_parse_error,
+          ":only_rows can only accept nil or Array as an element, but %s was provided.",
+          RSTRING_PTR(rb_inspect(only_row)));
       }
     }
   }
@@ -364,6 +385,7 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     }
   }
 
+  /* FIXME: Need to also clean memory from rb_protect to prevent exception-borne memory leaks */
   /* Flushing libcsv's buffer and freeing up allocated memory */
   csv_fini(&cp, &end_of_field_callback, &end_of_line_callback, &meta);
   csv_free(&cp);

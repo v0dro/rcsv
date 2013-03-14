@@ -68,27 +68,27 @@ class RcsvRawParseTest < Test::Unit::TestCase
   end
 
   def test_only_rows
-    raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => ['GBP'])
+    raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => [['GBP', 'NO SUCH THING']])
 
-    assert_equal(raw_parsed_csv_data[0][0], 'GBP')
-    assert_equal(raw_parsed_csv_data[-1][3], '15')
-    assert_equal(raw_parsed_csv_data.size, 3)
+    assert_equal('GBP', raw_parsed_csv_data[0][0])
+    assert_equal('15', raw_parsed_csv_data[-1][3])
+    assert_equal(3, raw_parsed_csv_data.size)
   end
 
   def test_only_rows_with_nil_and_empty_string_filter
-    raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => ['GBP', nil, '', '51'])
+    raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => [['GBP'], nil, ['zzz', nil], ['51']])
 
-    assert_equal(raw_parsed_csv_data[0][0], 'GBP')
-    assert_equal(raw_parsed_csv_data[0][2], nil)
-    assert_equal(raw_parsed_csv_data.size, 1)
+    assert_equal('GBP', raw_parsed_csv_data[0][0])
+    assert_equal(nil, raw_parsed_csv_data[0][2])
+    assert_equal(1, raw_parsed_csv_data.size)
   end
 
   def test_only_rows_with_nil_beginning
-    raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => [nil, nil, nil, '96', nil])
+    raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => [nil, nil, nil, [123, 96], nil], :row_conversions => 'sssi')
 
     assert_equal(raw_parsed_csv_data[1][0], 'C3B87A6B')
     assert_equal(raw_parsed_csv_data[0][2], nil)
-    assert_equal(raw_parsed_csv_data[3][3], '96')
+    assert_equal(raw_parsed_csv_data[3][3], 96)
     assert_equal(raw_parsed_csv_data.size, 5)
   end
 
