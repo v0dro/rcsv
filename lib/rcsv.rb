@@ -59,6 +59,7 @@ class Rcsv
 
     if options[:columns]
       only_rows = []
+      except_rows = []
       row_defaults = []
       column_names = []
       row_conversions = ''
@@ -81,6 +82,15 @@ class Rcsv
             [column_options[:match]]
           end
 
+          except_rows << case column_options[:not_match]
+          when Array
+            column_options[:not_match]
+          when nil
+            nil
+          else
+            [column_options[:not_match]]
+          end
+
           row_conversions << case column_options[:type]
           when :int
             'i'
@@ -93,23 +103,26 @@ class Rcsv
           when nil
             's' # strings by default
           else
-            fail "Unknown column type"
+            fail "Unknown column type #{column_options[:type].inspect}."
           end
         elsif options[:only_listed_columns]
           column_names << nil
           row_defaults << nil
           only_rows << nil
+          except_rows << nil
           row_conversions << ' '
         else
           column_names << column_header
           row_defaults << nil
           only_rows << nil
+          except_rows << nil
           row_conversions << 's'
         end
       end
 
       raw_options[:column_names] = column_names if options[:row_as_hash]
       raw_options[:only_rows] = only_rows unless only_rows.compact.empty?
+      raw_options[:except_rows] = except_rows unless except_rows.compact.empty?
       raw_options[:row_defaults] = row_defaults unless row_defaults.compact.empty?
       raw_options[:row_conversions] = row_conversions
     end

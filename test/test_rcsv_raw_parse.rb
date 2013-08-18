@@ -75,6 +75,14 @@ class RcsvRawParseTest < Test::Unit::TestCase
     assert_equal(3, raw_parsed_csv_data.size)
   end
 
+  def test_except_rows
+    raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :except_rows => [['GBP', 'NO SUCH THING']])
+
+    assert_equal('C85A5B9F', raw_parsed_csv_data[1][0])
+    assert_equal('4971', raw_parsed_csv_data[28][4])
+    assert_equal(886, raw_parsed_csv_data.size)
+  end
+
   def test_only_rows_with_nil_and_empty_string_filter
     raw_parsed_csv_data = Rcsv.raw_parse(@csv_data, :only_rows => [['GBP'], nil, ['zzz', nil], ['51']])
 

@@ -12,22 +12,24 @@ static VALUE rcsv_parse_error; /* class Rcsv::ParseError << StandardError; end *
 struct rcsv_metadata {
   /* Derived from user-specified options */
   bool row_as_hash;           /* Used to return array of hashes rather than array of arrays */
-  bool empty_field_is_nil;   /* Do we convert empty fields to nils? */
+  bool empty_field_is_nil;    /* Do we convert empty fields to nils? */
   size_t offset_rows;         /* Number of rows to skip before parsing */
 
   char * row_conversions;     /* A pointer to string/array of row conversions char specifiers */
   VALUE * only_rows;          /* A pointer to array of row filters */
+  VALUE * except_rows;        /* A pointer to array of negative row filters */
   VALUE * row_defaults;       /* A pointer to array of row defaults */
   VALUE * column_names;       /* A pointer to array of column names to be used with hashes */
 
   /* Pointer options lengths */
   size_t num_row_conversions; /* Number of converter types in row_conversions array */
   size_t num_only_rows;       /* Number of items in only_rows filter */
+  size_t num_except_rows;     /* Number of items in except_rows filter */
   size_t num_row_defaults;    /* Number of default values in row_defaults array */
   size_t num_columns;         /* Number of columns detected from column_names.size */
 
   /* Internal state */
-  bool skip_current_row;      /* Used by only_rows filter to skip parsing of the row remainder */
+  bool skip_current_row;      /* Used by only_rows and except_rows filters to skip parsing of the row remainder */
   size_t current_col;         /* Current column's index */
   size_t current_row;         /* Current row's index */
 
@@ -129,6 +131,15 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
       return;
     }
 
+    /* Filter out by row values listed in meta->except_rows */
+    if ((meta->except_rows != NULL) &&
+        (meta->current_col < meta->num_except_rows) &&
+        (meta->except_rows[meta->current_col] != Qnil) &&
+        (rb_ary_includes(meta->except_rows[meta->current_col], parsed_field))) {
+      meta->skip_current_row = true;
+      return;
+    }
+
     /* Assign the value to appropriate hash key if parsing into Hash */
     if (meta->row_as_hash) {
       if (meta->current_col >= meta->num_columns) {
@@ -193,6 +204,37 @@ void custom_end_of_line_callback(int last_char, void * data) {
   }
 }
 
+/* Filter rows need to be either nil or Arrays of Strings/bools/nil, so we validate this here */
+VALUE validate_filter_row(const char * filter_name, VALUE row) {
+  if (row == Qnil) {
+    return Qnil;
+  } else if (TYPE(row) == T_ARRAY) {
+    size_t j;
+    for (j = 0; j < (size_t)RARRAY_LEN(row); j++) {
+      switch (TYPE(rb_ary_entry(row, j))) {
+        case T_NIL:
+        case T_TRUE:
+        case T_FALSE:
+        case T_FLOAT:
+        case T_FIXNUM:
+        case T_BIGNUM:
+        case T_REGEXP:
+        case T_STRING:
+          break;
+        default:
+          rb_raise(rcsv_parse_error,
+            ":%s can only accept nil or Array consisting of String, boolean or nil elements, but %s was provided.",
+            filter_name, RSTRING_PTR(rb_inspect(row)));
+      }
+    }
+    return row;
+  } else {
+    rb_raise(rcsv_parse_error,
+      ":%s can only accept nil or Array as an element, but %s was provided.",
+      filter_name, RSTRING_PTR(rb_inspect(row)));
+  }
+}
+
 /* C API */
 
 /* The main method that handles parsing */
@@ -216,9 +258,11 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   meta.current_row = 0;
   meta.offset_rows = 0;
   meta.num_only_rows = 0;
+  meta.num_except_rows = 0;
   meta.num_row_defaults = 0;
   meta.num_row_conversions = 0;
   meta.only_rows = NULL;
+  meta.except_rows = NULL;
   meta.row_defaults = NULL;
   meta.row_conversions = NULL;
   meta.column_names = NULL;
@@ -285,33 +329,21 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
 
     for (i = 0; i < meta.num_only_rows; i++) {
       VALUE only_row = rb_ary_entry(option, i);
-      if (only_row == Qnil) {
-        meta.only_rows[i] = Qnil;
-      } else if (TYPE(only_row) == T_ARRAY) {
-        size_t j;
-        for (j = 0; j < (size_t)RARRAY_LEN(only_row); j++) {
-          switch (TYPE(rb_ary_entry(only_row, j))) {
-            case T_NIL:
-            case T_TRUE:
-            case T_FALSE:
-            case T_FLOAT:
-            case T_FIXNUM:
-            case T_BIGNUM:
-            case T_REGEXP:
-            case T_STRING:
-              break;
-            default:
-              rb_raise(rcsv_parse_error,
-                ":only_rows can only accept nil or Array consisting of String, boolean or nil elements, but %s was provided.",
-                RSTRING_PTR(rb_inspect(only_row)));
-          }
-        }
-        meta.only_rows[i] = only_row;
-      } else {
-        rb_raise(rcsv_parse_error,
-          ":only_rows can only accept nil or Array as an element, but %s was provided.",
-          RSTRING_PTR(rb_inspect(only_row)));
-      }
+      meta.only_rows[i] = validate_filter_row("only_rows", only_row);
+    }
+  }
+
+  /* :except_rows is a list of values where row is only parsed
+     if its fields don't match those in the passed array.
+     [nil, nil, ["ABC", nil, 1]] skips all rows where 3rd column is equal to "ABC", nil or 1 */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("except_rows")));
+  if (option != Qnil) {
+    meta.num_except_rows = (size_t)RARRAY_LEN(option);
+    meta.except_rows = (VALUE *)malloc(meta.num_except_rows * sizeof(VALUE));
+
+    for (i = 0; i < meta.num_except_rows; i++) {
+      VALUE except_row = rb_ary_entry(option, i);
+      meta.except_rows[i] = validate_filter_row("except_rows", except_row);
     }
   }
 
@@ -394,6 +426,10 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     free(meta.only_rows);
   }
 
+  if (meta.except_rows != NULL) {
+    free(meta.except_rows);
+  }
+
   if (meta.row_defaults != NULL) {
     free(meta.row_defaults);
   }
@@ -414,7 +450,6 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     return *(meta.result); /* Return accumulated result */
   }
 }
-
 
 /* Define Ruby API */
 void Init_rcsv(void) {

@@ -55,4 +55,25 @@ class RcsvParseTest < Test::Unit::TestCase
 
     assert_equal([["a", "1", true]], parsed_data)
   end
+
+  def test_rcsv_parse_only_rows_not_match
+    csv = "a,1,t\nb,2,false\nc,3,0"
+    parsed_data = Rcsv.parse(csv,
+      :header => :none,
+      :columns => [
+        {
+          :not_match => ['z', 'a', '1']
+        },
+        {
+          :type => :int
+        },
+        {
+          :not_match => true,
+          :type => :bool
+        }
+      ]
+    )
+
+    assert_equal([["b", 2, false], ["c", 3, false]], parsed_data)
+  end
 end
