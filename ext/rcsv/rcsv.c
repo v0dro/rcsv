@@ -197,13 +197,6 @@ void end_of_line_callback(int last_char, void * data) {
   return;
 }
 
-void custom_end_of_line_callback(int last_char, void * data) {
-  struct rcsv_metadata * meta = (struct rcsv_metadata *) data;
-
-  if (!meta->skip_current_row) {
-  }
-}
-
 /* Filter rows need to be either nil or Arrays of Strings/bools/nil, so we validate this here */
 VALUE validate_filter_row(const char * filter_name, VALUE row) {
   if (row == Qnil) {
@@ -235,19 +228,194 @@ VALUE validate_filter_row(const char * filter_name, VALUE row) {
   }
 }
 
+/* All the possible free()'s should be listed here.
+   This function should be invoked before returning the result to Ruby or raising an exception. */
+void free_memory(struct csv_parser * cp, struct rcsv_metadata * meta) {
+  if (meta->only_rows != NULL) {
+    free(meta->only_rows);
+  }
+
+  if (meta->except_rows != NULL) {
+    free(meta->except_rows);
+  }
+
+  if (meta->row_defaults != NULL) {
+    free(meta->row_defaults);
+  }
+
+  if (meta->column_names != NULL) {
+    free(meta->column_names);
+  }
+
+  if (cp != NULL) {
+    csv_free(cp);
+  }
+}
+
+/* An rb_rescue()-compatible free_memory() wrapper that unpacks C pointers from Ruby's Fixnums */
+VALUE rcsv_free_memory(VALUE ensure_container) {
+  free_memory(
+    (struct csv_parser *)NUM2LONG(rb_ary_entry(ensure_container, 3)),
+    (struct rcsv_metadata *)NUM2LONG(rb_ary_entry(ensure_container, 2))
+  );
+
+  return Qnil;
+}
+
+/* An rb_rescue()-compatible Ruby pseudo-method that handles the actual parsing */
+VALUE rcsv_raw_parse(VALUE ensure_container) {
+  /* Unpacking multiple variables from a single Ruby VALUE */
+  VALUE options = rb_ary_entry(ensure_container, 0);
+  VALUE csvio   = rb_ary_entry(ensure_container, 1);
+  struct rcsv_metadata * meta = (struct rcsv_metadata *)NUM2LONG(rb_ary_entry(ensure_container, 2));
+  struct csv_parser * cp = (struct csv_parser *)NUM2LONG(rb_ary_entry(ensure_container, 3));
+
+  /* Helper temporary variables */
+  VALUE option, csvstr, buffer_size;
+
+  /* libcsv-related temporary variables */
+  char * csv_string;
+  size_t csv_string_len;
+  int error;
+
+  /* Generic iterator */
+  size_t i = 0;
+
+  /* IO buffer size can be controller via an option */
+  buffer_size = rb_hash_aref(options, ID2SYM(rb_intern("buffer_size")));
+
+  /* By default, parse as Array of Arrays */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("row_as_hash")));
+  if (option && (option != Qnil)) {
+    meta->row_as_hash = true;
+  }
+
+  /* :col_sep sets the column separator, default is comma (,) */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("col_sep")));
+  if (option != Qnil) {
+    csv_set_delim(cp, (unsigned char)*StringValuePtr(option));
+  }
+
+  /* Specify how many rows to skip from the beginning of CSV */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("offset_rows")));
+  if (option != Qnil) {
+    meta->offset_rows = (size_t)NUM2INT(option);
+  }
+
+  /* :only_rows is a list of values where row is only parsed
+     if its fields match those in the passed array.
+     [nil, nil, ["ABC", nil, 1]] skips all rows where 3rd column isn't equal to "ABC", nil or 1 */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("only_rows")));
+  if (option != Qnil) {
+    meta->num_only_rows = (size_t)RARRAY_LEN(option);
+    meta->only_rows = (VALUE *)malloc(meta->num_only_rows * sizeof(VALUE));
+
+    for (i = 0; i < meta->num_only_rows; i++) {
+      VALUE only_row = rb_ary_entry(option, i);
+      meta->only_rows[i] = validate_filter_row("only_rows", only_row);
+    }
+  }
+
+  /* :except_rows is a list of values where row is only parsed
+     if its fields don't match those in the passed array.
+     [nil, nil, ["ABC", nil, 1]] skips all rows where 3rd column is equal to "ABC", nil or 1 */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("except_rows")));
+  if (option != Qnil) {
+    meta->num_except_rows = (size_t)RARRAY_LEN(option);
+    meta->except_rows = (VALUE *)malloc(meta->num_except_rows * sizeof(VALUE));
+
+    for (i = 0; i < meta->num_except_rows; i++) {
+      VALUE except_row = rb_ary_entry(option, i);
+      meta->except_rows[i] = validate_filter_row("except_rows", except_row);
+    }
+  }
+
+  /* :row_defaults is an array of default values that are assigned to fields containing empty strings
+     according to matching field positions */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("row_defaults")));
+  if (option != Qnil) {
+    meta->num_row_defaults = RARRAY_LEN(option);
+    meta->row_defaults = (VALUE*)malloc(meta->num_row_defaults * sizeof(VALUE*));
+
+    for (i = 0; i < meta->num_row_defaults; i++) {
+      VALUE row_default = rb_ary_entry(option, i);
+      meta->row_defaults[i] = row_default;
+    }
+  }
+
+  /* :row_conversions specifies Ruby types that CSV field values should be converted into.
+     Each char of row_conversions string represents Ruby type for CSV field with matching position. */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("row_conversions"))); 
+  if (option != Qnil) {
+    meta->num_row_conversions = RSTRING_LEN(option);
+    meta->row_conversions = StringValuePtr(option);
+  }
+
+ /* Column names should be declared explicitly when parsing fields as Hashes */
+  if (meta->row_as_hash) { /* Only matters for hash results */
+    option = rb_hash_aref(options, ID2SYM(rb_intern("column_names"))); 
+    if (option == Qnil) {
+      rb_raise(rcsv_parse_error, ":row_as_hash requires :column_names to be set.");
+    } else {
+      meta->last_entry = rb_hash_new();
+
+      meta->num_columns = (size_t)RARRAY_LEN(option);
+      meta->column_names = (VALUE*)malloc(meta->num_columns * sizeof(VALUE*));
+
+      for (i = 0; i < meta->num_columns; i++) {
+        meta->column_names[i] = rb_ary_entry(option, i);
+      }
+    }
+  } else {
+    meta->last_entry = rb_ary_new();
+  }
+
+  while(true) {
+    csvstr = rb_funcall(csvio, rb_intern("read"), 1, buffer_size);
+    if ((csvstr == Qnil) || (RSTRING_LEN(csvstr) == 0)) { break; }
+
+    csv_string = StringValuePtr(csvstr);
+    csv_string_len = strlen(csv_string);
+
+    /* Actual parsing and error handling */
+    if (csv_string_len != csv_parse(cp, csv_string, csv_string_len,
+                                    &end_of_field_callback, &end_of_line_callback, meta)) {
+      error = csv_error(cp);
+      switch(error) {
+        case CSV_EPARSE:
+          rb_raise(rcsv_parse_error, "Error when parsing malformed data");
+          break;
+        case CSV_ENOMEM:
+          rb_raise(rcsv_parse_error, "No memory");
+          break;
+        case CSV_ETOOBIG:
+          rb_raise(rcsv_parse_error, "Field data is too large");
+          break;
+        case CSV_EINVALID:
+          rb_raise(rcsv_parse_error, "%s", (const char *)csv_strerror(error));
+        break;
+        default:
+          rb_raise(rcsv_parse_error, "Failed due to unknown reason");
+      }
+    }
+  }
+
+  /* Flushing libcsv's buffer */
+  csv_fini(cp, &end_of_field_callback, &end_of_line_callback, meta);
+
+  return Qnil;
+}
+
 /* C API */
 
 /* The main method that handles parsing */
 static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   struct rcsv_metadata meta;
-  VALUE csvio, csvstr, buffer_size, options, option;
+  VALUE csvio, options, option;
+  VALUE ensure_container = rb_ary_new(); /* [] */
 
   struct csv_parser cp;
   unsigned char csv_options = CSV_STRICT_FINI | CSV_APPEND_NULL;
-  char * csv_string;
-  size_t csv_string_len;
-  int error;
-  size_t i = 0;
 
   /* Setting up some sane defaults */
   meta.row_as_hash = false;
@@ -271,12 +439,12 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
   /* csvio is required, options is optional (pun intended) */
   rb_scan_args(argc, argv, "11", &csvio, &options);
 
-  /* options ||= nil */
+  /* options ||= {} */
   if (NIL_P(options)) {
     options = rb_hash_new();
   }
 
-  buffer_size = rb_hash_aref(options, ID2SYM(rb_intern("buffer_size")));
+  /* First of all, we parse libcsv-related params so that it fails early if something is wrong with them */
 
   /* By default, parsing is strict */
   option = rb_hash_aref(options, ID2SYM(rb_intern("nostrict")));
@@ -296,147 +464,20 @@ static VALUE rb_rcsv_raw_parse(int argc, VALUE * argv, VALUE self) {
     rb_raise(rcsv_parse_error, "The only valid options for :parse_empty_fields_as are :nil, :string and :nil_or_string, but %s was supplied.", RSTRING_PTR(rb_inspect(option)));
   }
 
+  /* rb_ensure() only expects callback functions to accept and return VALUEs */
+  /* This ugly hack converts C pointers into Ruby Fixnums in order to pass them in Array */
+  rb_ary_push(ensure_container, options);               /* [options] */
+  rb_ary_push(ensure_container, csvio);                 /* [options, csvio] */
+  rb_ary_push(ensure_container, LONG2NUM((long)&meta)); /* [options, csvio, &meta] */
+  rb_ary_push(ensure_container, LONG2NUM((long)&cp));   /* [options, csvio, &meta, &cp] */
+
   /* Try to initialize libcsv */
   if (csv_init(&cp, csv_options) == -1) {
     rb_raise(rcsv_parse_error, "Couldn't initialize libcsv");
   }
 
-  /* By default, parse as Array of Arrays */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("row_as_hash")));
-  if (option && (option != Qnil)) {
-    meta.row_as_hash = true;
-  }
-
-  /* :col_sep sets the column separator, default is comma (,) */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("col_sep")));
-  if (option != Qnil) {
-    csv_set_delim(&cp, (unsigned char)*StringValuePtr(option));
-  }
-
-  /* Specify how many rows to skip from the beginning of CSV */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("offset_rows")));
-  if (option != Qnil) {
-    meta.offset_rows = (size_t)NUM2INT(option);
-  }
-
-  /* :only_rows is a list of values where row is only parsed
-     if its fields match those in the passed array.
-     [nil, nil, ["ABC", nil, 1]] skips all rows where 3rd column isn't equal to "ABC", nil or 1 */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("only_rows")));
-  if (option != Qnil) {
-    meta.num_only_rows = (size_t)RARRAY_LEN(option);
-    meta.only_rows = (VALUE *)malloc(meta.num_only_rows * sizeof(VALUE));
-
-    for (i = 0; i < meta.num_only_rows; i++) {
-      VALUE only_row = rb_ary_entry(option, i);
-      meta.only_rows[i] = validate_filter_row("only_rows", only_row);
-    }
-  }
-
-  /* :except_rows is a list of values where row is only parsed
-     if its fields don't match those in the passed array.
-     [nil, nil, ["ABC", nil, 1]] skips all rows where 3rd column is equal to "ABC", nil or 1 */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("except_rows")));
-  if (option != Qnil) {
-    meta.num_except_rows = (size_t)RARRAY_LEN(option);
-    meta.except_rows = (VALUE *)malloc(meta.num_except_rows * sizeof(VALUE));
-
-    for (i = 0; i < meta.num_except_rows; i++) {
-      VALUE except_row = rb_ary_entry(option, i);
-      meta.except_rows[i] = validate_filter_row("except_rows", except_row);
-    }
-  }
-
-  /* :row_defaults is an array of default values that are assigned to fields containing empty strings
-     according to matching field positions */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("row_defaults")));
-  if (option != Qnil) {
-    meta.num_row_defaults = RARRAY_LEN(option);
-    meta.row_defaults = (VALUE*)malloc(meta.num_row_defaults * sizeof(VALUE*));
-
-    for (i = 0; i < meta.num_row_defaults; i++) {
-      VALUE row_default = rb_ary_entry(option, i);
-      meta.row_defaults[i] = row_default;
-    }
-  }
-
-  /* :row_conversions specifies Ruby types that CSV field values should be converted into.
-     Each char of row_conversions string represents Ruby type for CSV field with matching position. */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("row_conversions"))); 
-  if (option != Qnil) {
-    meta.num_row_conversions = RSTRING_LEN(option);
-    meta.row_conversions = StringValuePtr(option);
-  }
-
- /* Column names should be declared explicitly when parsing fields as Hashes */
-  if (meta.row_as_hash) { /* Only matters for hash results */
-    option = rb_hash_aref(options, ID2SYM(rb_intern("column_names"))); 
-    if (option == Qnil) {
-      rb_raise(rcsv_parse_error, ":row_as_hash requires :column_names to be set.");
-    } else {
-      meta.last_entry = rb_hash_new();
-
-      meta.num_columns = (size_t)RARRAY_LEN(option);
-      meta.column_names = (VALUE*)malloc(meta.num_columns * sizeof(VALUE*));
-
-      for (i = 0; i < meta.num_columns; i++) {
-        meta.column_names[i] = rb_ary_entry(option, i);
-      }
-    }
-  } else {
-    meta.last_entry = rb_ary_new();
-  }
-
-  while(true) {
-    csvstr = rb_funcall(csvio, rb_intern("read"), 1, buffer_size);
-    if ((csvstr == Qnil) || (RSTRING_LEN(csvstr) == 0)) { break; }
-
-    csv_string = StringValuePtr(csvstr);
-    csv_string_len = strlen(csv_string);
-
-    /* Actual parsing and error handling */
-    if (csv_string_len != csv_parse(&cp, csv_string, csv_string_len,
-                                    &end_of_field_callback, &end_of_line_callback, &meta)) {
-      error = csv_error(&cp);
-      switch(error) {
-        case CSV_EPARSE:
-          rb_raise(rcsv_parse_error, "Error when parsing malformed data");
-          break;
-        case CSV_ENOMEM:
-          rb_raise(rcsv_parse_error, "No memory");
-          break;
-        case CSV_ETOOBIG:
-          rb_raise(rcsv_parse_error, "Field data is too large");
-          break;
-        case CSV_EINVALID:
-          rb_raise(rcsv_parse_error, "%s", (const char *)csv_strerror(error));
-        break;
-        default:
-          rb_raise(rcsv_parse_error, "Failed due to unknown reason");
-      }
-    }
-  }
-
-  /* FIXME: Need to also clean memory from rb_protect to prevent exception-borne memory leaks */
-  /* Flushing libcsv's buffer and freeing up allocated memory */
-  csv_fini(&cp, &end_of_field_callback, &end_of_line_callback, &meta);
-  csv_free(&cp);
-
-  if (meta.only_rows != NULL) {
-    free(meta.only_rows);
-  }
-
-  if (meta.except_rows != NULL) {
-    free(meta.except_rows);
-  }
-
-  if (meta.row_defaults != NULL) {
-    free(meta.row_defaults);
-  }
-
-  if (meta.column_names != NULL) {
-    free(meta.column_names);
-  }
+  /* From now on, cp handles allocated data and should be free'd on exit or exception */
+  rb_ensure(rcsv_raw_parse, ensure_container, rcsv_free_memory, ensure_container);
 
   /* Remove the last row if it's empty. That happens if CSV file ends with a newline. */
   if (RARRAY_LEN(*(meta.result)) && /* meta.result.size != 0 */
