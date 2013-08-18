@@ -90,6 +90,7 @@ If CSV has a header, :columns keys can be strings that are equal to column names
 * :type - A Ruby Symbol that specifies Ruby data type that CSV cell value should be converted into. Supported types: :int, :float, :string, :bool. :string is the default.
 * :default - Object of any type (though usually of the same type that is specified by :type option). If CSV doesn't have any value for a cell, this default value is used.
 * :match - An array of Ruby objects of supported type (see :type). If set, makes Rcsv skip all the rows where any column isn't included in its :match value. Useful for filtering data.
+* :not_match - An array of Ruby objects of supported type (see :type). If set, makes Rcsv skip all the rows where any column is included in its :not_match value. Useful for skipping data and is an opposite of :match.
 
 
 ### :header
@@ -170,7 +171,6 @@ This way it is possible to read from a File directly, with a 20MiB buffer and pa
 
 ## To do
 
-* Fix those tiny memory leaks that may happen when parse-time exceptions are raised
 * More tests for boolean values
 * More tests for Ruby parse
 * Finish CSV write support

@@ -1,3 +1,7 @@
+Version 0.1.1
+  * added :not_match filter that skips rows with values listed in that option
+  * eliminated many potential memory leaks related to exception handling
+
 Version 0.1.0
   * backwards-incompatible change in :match option: filtering now happens after creating Ruby objects and thus rows can now be filtered not only as CSV field strings
   * fixed a bug where field's key was being set to nil if :row_as_hash was enabled and :alias wasn't defined
