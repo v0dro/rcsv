@@ -29,7 +29,7 @@ static VALUE rcsv_parse_error; /* class Rcsv::ParseError << StandardError; end *
 #else
 
 #define RB_ENC_FIND_INDEX(encoding) \
-  -1
+  rb_raise(rcsv_parse_error, "Character encodings are unavailable in your ruby version!")  
 
 #define ENCODED_STR_NEW(str, length, enc_index)  \
   rb_str_new(str, length)
