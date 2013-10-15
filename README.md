@@ -183,3 +183,9 @@ This way it is possible to read from a File directly, with a 20MiB buffer and pa
 3. Commit your changes (`git commit -am 'Added some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+
+## Credits
+
+* Maintainer: Arthur Pirogovski @arp
+* Contributors: Edward Slavich @eslavich

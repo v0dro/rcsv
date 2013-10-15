@@ -172,14 +172,15 @@ class Rcsv
 
   protected
 
-  def process(field, column_options, formatter_options = nil)
+  def process(field, column_options)
     return case column_options[:formatter]
     when :strftime
       format = column_options[:format] || "%Y-%m-%d %H:%M:%S %z"
       field.strftime(format)
     when :printf
       format = column_options[:format] || "%s"
-      formatter_options ? sprintf(format, formatter_options.merge(:field => field)) : sprintf(format, field)
+      printf_options = column_options[:printf_options]
+      printf_options ? sprintf(format, printf_options.merge(:field => field)) : sprintf(format, field)
     when :boolean
       BOOLEAN_FALSE.include?(field.respond_to?(:downcase) ? field.downcase : field) ? 'false' : 'true'
     else

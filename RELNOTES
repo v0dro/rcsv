@@ -1,3 +1,8 @@
+Version 0.2.0
+  * added support for big integer numbers (by Edward Slavich)
+  * added support for String encodings for MRI 1.9+ (by Edward Slavich)
+  * added support for sprintf hash arguments for experimental writing
+
 Version 0.1.1
   * added :not_match filter that skips rows with values listed in that option
   * eliminated many potential memory leaks related to exception handling

@@ -24,6 +24,12 @@ class RcsvWriteTest < Test::Unit::TestCase
           :name => 'Banana IDDQD'
         },
         {
+          :name => 'Hashformat',
+          :formatter => :printf,
+          :format => '%{currency_symbol}%<field>2.2f%{nilly}',
+          :printf_options => {:currency_symbol => '$', :nilly => nil}
+        },
+        {
           :name => nil,
           :formatter => :boolean
         }
@@ -31,9 +37,9 @@ class RcsvWriteTest < Test::Unit::TestCase
     }
 
     @data = [
-      [1, Date.parse('2012-11-11'), 100.234, true, nil],
-      [nil, Date.parse('1970-01-02'), -0.1, :nyancat, 0],
-      [3, Date.parse('2012-12-12'), 0, 'sepulka', 'zoop']
+      [1, Date.parse('2012-11-11'), 100.234, true, 1, nil],
+      [nil, Date.parse('1970-01-02'), -0.1, :nyancat, 123.8891, 0],
+      [3, Date.parse('2012-12-12'), 0, 'sepulka', -122, 'zoop']
     ]
 
     @writer = Rcsv.new(@options)
@@ -41,12 +47,12 @@ class RcsvWriteTest < Test::Unit::TestCase
 
   def test_rcsv_generate_header
     assert_equal(
-      "ID,Date,Money,Banana IDDQD,\r\n", @writer.generate_header
+      "ID,Date,Money,Banana IDDQD,Hashformat,\r\n", @writer.generate_header
     )
   end
 
   def test_rscv_generate_row
-    assert_equal("1,2012-11-11,$100.23,true,false\r\n", @writer.generate_row(@data.first))
+    assert_equal("1,2012-11-11,$100.23,true,$1.00,false\r\n", @writer.generate_row(@data.first))
   end
 
   def test_rcsv_write
@@ -59,7 +65,7 @@ class RcsvWriteTest < Test::Unit::TestCase
     io.rewind
 
     assert_equal(
-      "ID,Date,Money,Banana IDDQD,\r\n1,2012-11-11,$100.23,true,false\r\n,1970-01-02,$-0.10,nyancat,false\r\n3,2012-12-12,$0.00,sepulka,true\r\n", io.read
+      "ID,Date,Money,Banana IDDQD,Hashformat,\r\n1,2012-11-11,$100.23,true,$1.00,false\r\n,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n", io.read
     )
   end
 
@@ -74,7 +80,7 @@ class RcsvWriteTest < Test::Unit::TestCase
     io.rewind
 
     assert_equal(
-      "1,2012-11-11,$100.23,true,false\r\n,1970-01-02,$-0.10,nyancat,false\r\n3,2012-12-12,$0.00,sepulka,true\r\n", io.read
+      "1,2012-11-11,$100.23,true,$1.00,false\r\n,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n", io.read
     )
   end
 end
