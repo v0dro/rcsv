@@ -1,3 +1,8 @@
+Version 0.2.1
+  * removed a bunch of deprecation warnings (by Ivan Zarea)
+  * added Ruby 2.1 support for Travis CI
+  * fixed write tests on Ruby 1.8.7
+
 Version 0.2.0
   * added support for big integer numbers (by Edward Slavich)
   * added support for String encodings for MRI 1.9+ (by Edward Slavich)

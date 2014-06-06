@@ -4,6 +4,21 @@ require 'date'
 
 class RcsvWriteTest < Test::Unit::TestCase
   def setup
+    hashformat = if RUBY_VERSION >= '1.9'
+      {
+        :name => 'Hashformat',
+        :formatter => :printf,
+        :format => '%{currency_symbol}%<field>2.2f%{nilly}',
+        :printf_options => {:currency_symbol => '$', :nilly => nil}
+      }
+    else # Ruby before 1.9 didn't support Hash formatting for sprintf()
+      {
+        :name => 'Hashformat',
+        :formatter => :printf,
+        :format => '$%2.2f'
+      }
+    end
+
     @options = {
       :header => true,
       :columns => [
@@ -23,12 +38,7 @@ class RcsvWriteTest < Test::Unit::TestCase
         {
           :name => 'Banana IDDQD'
         },
-        {
-          :name => 'Hashformat',
-          :formatter => :printf,
-          :format => '%{currency_symbol}%<field>2.2f%{nilly}',
-          :printf_options => {:currency_symbol => '$', :nilly => nil}
-        },
+        hashformat,
         {
           :name => nil,
           :formatter => :boolean
