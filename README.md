@@ -164,9 +164,13 @@ That would display contents of each row without needing to put the whole parsed 
 
 This way it is possible to read from a File directly, with a 20MiB buffer and parse lines one by one:
 
-    Rcsv.parse(File.open('/some/file.csv'), :buffer_size => 20 * 1024 * 1024) { |row|
+    some_csv_file = File.open('/some/file.csv')
+
+    Rcsv.parse(some_csv_file, :buffer_size => 20 * 1024 * 1024) { |row|
       puts row.inspect
     }
+
+    some_csv_file.close
 
 
 ## To do
