@@ -30,6 +30,7 @@ class Rcsv
     raw_options = {}
 
     raw_options[:col_sep] = options[:column_separator] && options[:column_separator][0] || ','
+    raw_options[:quote_char] = options[:quote_char] && options[:quote_char][0] || '"'
     raw_options[:offset_rows] = options[:offset_rows] || 0
     raw_options[:nostrict] = options[:nostrict]
     raw_options[:parse_empty_fields_as] = options[:parse_empty_fields_as]

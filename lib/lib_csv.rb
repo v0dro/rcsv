@@ -34,6 +34,9 @@ class LibCsv
   attach_function :csv_set_delim, [:pointer, :uchar], :void
   attach_function :csv_get_delim, [:pointer], :uchar
 
+  attach_function :csv_set_quote, [:pointer, :uchar], :void
+  attach_function :csv_get_quote, [:pointer], :uchar
+
   attach_function :csv_error, [:pointer], :int
   attach_function :csv_strerror, [:int], :string
 
@@ -44,6 +47,10 @@ class LibCsv
 
     if options[:col_sep]
       csv_set_delim(parser, options[:col_sep].ord)
+    end
+
+    if options[:quote_char]
+      csv_set_quote(parser, options[:quote_char].ord)
     end
 
     fail "Couldn't initialize libcsv" if result == -1
@@ -82,7 +89,7 @@ class LibCsv
     csv_fini(parser, end_of_field_callback, end_of_record_callback, nil)
     csv_free(parser)
     result.pop if result.last == []
-    
+
     return result
   end
 end
