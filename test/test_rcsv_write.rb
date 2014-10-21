@@ -94,8 +94,30 @@ class RcsvWriteTest < Test::Unit::TestCase
     )
   end
 
-  def test_dont_require_columns
+  def test_generate_row__dont_require_columns
     writer = Rcsv.new
-    assert_equal "1,2,3\r\n", writer.generate_row([1,2,3])
+    assert_equal "1,2,3\r\n", writer.generate_row([1, 2, 3])
+  end
+
+  def test_generate_row__proper_escaping_for_quotes_and_newlines
+    writer = Rcsv.new
+    assert_equal "\"before quote \"\" after quote\",\"before newline \n after newline\"\r\n",
+                 writer.generate_row(["before quote \" after quote", "before newline \n after newline"])
+  end
+
+  def test_generate_row__should_be_able_to_parse_generated_csv
+    writer = Rcsv.new
+    quotable_strings = [
+      "before quote \" after quote",
+      "before newline \n after newline",
+      "before separator , after separator",
+      "separator , and quote \" oh my"
+    ]
+    assert_equal [quotable_strings], Rcsv.parse(writer.generate_row(quotable_strings), header: :none)
+  end
+
+  def test_generate_row__should_handle_alternate_column_separators
+    writer = Rcsv.new(column_separator: '|')
+    assert_equal "1|2|\"before pipe | after pipe\"\r\n", writer.generate_row([1, 2, 'before pipe | after pipe'])
   end
 end

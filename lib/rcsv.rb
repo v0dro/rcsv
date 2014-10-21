@@ -140,6 +140,14 @@ class Rcsv
     @write_options[:column_separator] ||= ','
     @write_options[:newline_delimiter] ||= "\r\n" # Making Excel happy...
     @write_options[:header] ||= false
+
+    @quote = '"'
+    @escaped_quote = @quote * 2
+    @quotable_chars = Regexp.new('[%s%s%s]' % [
+      Regexp.escape(@write_options[:column_separator]),
+      Regexp.escape(@write_options[:newline_delimiter]),
+      Regexp.escape(@quote)
+    ])
   end
 
   def write(io, &block)
@@ -162,8 +170,7 @@ class Rcsv
 
     row.each_with_index do |field, index|
       unquoted_field = process(field, @write_options[:columns] && @write_options[:columns][index])
-      # TODO: a better quoting
-      csv_row << (unquoted_field.match(/,/) ? "\"#{unquoted_field}\"" : unquoted_field)
+      csv_row << (unquoted_field.match(@quotable_chars) ? "\"#{unquoted_field.gsub(@quote, @escaped_quote)}\"" : unquoted_field)
       csv_row << column_separator unless index == max_index
     end
 
