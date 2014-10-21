@@ -93,4 +93,9 @@ class RcsvWriteTest < Test::Unit::TestCase
       "1,2012-11-11,$100.23,true,$1.00,false\r\n,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n", io.read
     )
   end
+
+  def test_dont_require_columns
+    writer = Rcsv.new
+    assert_equal "1,2,3\r\n", writer.generate_row([1,2,3])
+  end
 end

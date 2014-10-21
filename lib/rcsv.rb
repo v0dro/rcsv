@@ -161,7 +161,7 @@ class Rcsv
     max_index = row.size - 1
 
     row.each_with_index do |field, index|
-      unquoted_field = process(field, @write_options[:columns][index])
+      unquoted_field = process(field, @write_options[:columns] && @write_options[:columns][index])
       # TODO: a better quoting
       csv_row << (unquoted_field.match(/,/) ? "\"#{unquoted_field}\"" : unquoted_field)
       csv_row << column_separator unless index == max_index
@@ -173,7 +173,7 @@ class Rcsv
   protected
 
   def process(field, column_options)
-    return case column_options[:formatter]
+    return case column_options && column_options[:formatter]
     when :strftime
       format = column_options[:format] || "%Y-%m-%d %H:%M:%S %z"
       field.strftime(format)
