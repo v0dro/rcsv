@@ -2,6 +2,7 @@ require "rcsv/rcsv"
 require "rcsv/version"
 
 require "stringio"
+require "English"
 
 class Rcsv
 
@@ -138,7 +139,7 @@ class Rcsv
   def initialize(write_options = {})
     @write_options = write_options
     @write_options[:column_separator] ||= ','
-    @write_options[:newline_delimiter] ||= "\r\n" # Making Excel happy...
+    @write_options[:newline_delimiter] ||= $INPUT_RECORD_SEPARATOR
     @write_options[:header] ||= false
 
     @quote = '"'

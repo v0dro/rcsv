@@ -57,12 +57,12 @@ class RcsvWriteTest < Test::Unit::TestCase
 
   def test_rcsv_generate_header
     assert_equal(
-      "ID,Date,Money,Banana IDDQD,Hashformat,\r\n", @writer.generate_header
+      "ID,Date,Money,Banana IDDQD,Hashformat,\n", @writer.generate_header
     )
   end
 
   def test_rscv_generate_row
-    assert_equal("1,2012-11-11,$100.23,true,$1.00,false\r\n", @writer.generate_row(@data.first))
+    assert_equal("1,2012-11-11,$100.23,true,$1.00,false\n", @writer.generate_row(@data.first))
   end
 
   def test_rcsv_write
@@ -75,7 +75,7 @@ class RcsvWriteTest < Test::Unit::TestCase
     io.rewind
 
     assert_equal(
-      "ID,Date,Money,Banana IDDQD,Hashformat,\r\n1,2012-11-11,$100.23,true,$1.00,false\r\n,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n", io.read
+      "ID,Date,Money,Banana IDDQD,Hashformat,\n1,2012-11-11,$100.23,true,$1.00,false\n,1970-01-02,$-0.10,nyancat,$123.89,false\n3,2012-12-12,$0.00,sepulka,$-122.00,true\n", io.read
     )
   end
 
@@ -90,18 +90,18 @@ class RcsvWriteTest < Test::Unit::TestCase
     io.rewind
 
     assert_equal(
-      "1,2012-11-11,$100.23,true,$1.00,false\r\n,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n", io.read
+      "1,2012-11-11,$100.23,true,$1.00,false\n,1970-01-02,$-0.10,nyancat,$123.89,false\n3,2012-12-12,$0.00,sepulka,$-122.00,true\n", io.read
     )
   end
 
   def test_generate_row__dont_require_columns
     writer = Rcsv.new
-    assert_equal "1,2,3\r\n", writer.generate_row([1, 2, 3])
+    assert_equal "1,2,3\n", writer.generate_row([1, 2, 3])
   end
 
   def test_generate_row__proper_escaping_for_quotes_and_newlines
     writer = Rcsv.new
-    assert_equal "\"before quote \"\" after quote\",\"before newline \n after newline\"\r\n",
+    assert_equal "\"before quote \"\" after quote\",\"before newline \n after newline\"\n",
                  writer.generate_row(["before quote \" after quote", "before newline \n after newline"])
   end
 
@@ -118,6 +118,6 @@ class RcsvWriteTest < Test::Unit::TestCase
 
   def test_generate_row__should_handle_alternate_column_separators
     writer = Rcsv.new(column_separator: '|')
-    assert_equal "1|2|\"before pipe | after pipe\"\r\n", writer.generate_row([1, 2, 'before pipe | after pipe'])
+    assert_equal "1|2|\"before pipe | after pipe\"\n", writer.generate_row([1, 2, 'before pipe | after pipe'])
   end
 end
