@@ -110,7 +110,7 @@ void end_of_field_callback(void * field, size_t field_size, void * data) {
       if (meta->current_col < meta->num_row_conversions) {
         switch (row_conversion){
           case 's': /* String */
-            parsed_field = ENCODED_STR_NEW(field_str, field_size, meta->encoding_index); 
+            parsed_field = ENCODED_STR_NEW(field_str, field_size, meta->encoding_index);
             break;
           case 'i': /* Integer */
             parsed_field = LL2NUM(atoll(field_str));
@@ -327,6 +327,12 @@ VALUE rcsv_raw_parse(VALUE ensure_container) {
     csv_set_delim(cp, (unsigned char)*StringValuePtr(option));
   }
 
+  /* :quote_char sets the character used for quoting data; default is double-quote (") */
+  option = rb_hash_aref(options, ID2SYM(rb_intern("quote_char")));
+  if (option != Qnil) {
+    csv_set_quote(cp, (unsigned char)*StringValuePtr(option));
+  }
+
   /* Specify how many rows to skip from the beginning of CSV */
   option = rb_hash_aref(options, ID2SYM(rb_intern("offset_rows")));
   if (option != Qnil) {
@@ -382,7 +388,7 @@ VALUE rcsv_raw_parse(VALUE ensure_container) {
 
   /* :row_conversions specifies Ruby types that CSV field values should be converted into.
      Each char of row_conversions string represents Ruby type for CSV field with matching position. */
-  option = rb_hash_aref(options, ID2SYM(rb_intern("row_conversions"))); 
+  option = rb_hash_aref(options, ID2SYM(rb_intern("row_conversions")));
   if (option != Qnil) {
     meta->num_row_conversions = RSTRING_LEN(option);
     meta->row_conversions = StringValuePtr(option);
@@ -390,7 +396,7 @@ VALUE rcsv_raw_parse(VALUE ensure_container) {
 
  /* Column names should be declared explicitly when parsing fields as Hashes */
   if (meta->row_as_hash) { /* Only matters for hash results */
-    option = rb_hash_aref(options, ID2SYM(rb_intern("column_names"))); 
+    option = rb_hash_aref(options, ID2SYM(rb_intern("column_names")));
     if (option == Qnil) {
       rb_raise(rcsv_parse_error, ":row_as_hash requires :column_names to be set.");
     } else {
