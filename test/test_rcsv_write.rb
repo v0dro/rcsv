@@ -47,9 +47,10 @@ class RcsvWriteTest < Test::Unit::TestCase
     }
 
     @data = [
-      [1, Date.parse('2012-11-11'), 100.234, true, 1, nil],
-      [nil, Date.parse('1970-01-02'), -0.1, :nyancat, 123.8891, 0],
-      [3, Date.parse('2012-12-12'), 0, 'sepulka', -122, 'zoop']
+      [1, Date.parse('2012-11-11'), 100.234, true, 1, true],
+      ['elephant', Date.parse('1970-01-02'), -0.1, :nyancat, 123.8891, 0],
+      [3, Date.parse('2012-12-12'), 0, 'sepulka', -122, 'zoop'],
+      [nil, nil, nil, nil, nil, nil]
     ]
 
     @writer = Rcsv.new(@options)
@@ -62,7 +63,7 @@ class RcsvWriteTest < Test::Unit::TestCase
   end
 
   def test_rscv_generate_row
-    assert_equal("1,2012-11-11,$100.23,true,$1.00,false\r\n", @writer.generate_row(@data.first))
+    assert_equal("1,2012-11-11,$100.23,true,$1.00,true\r\n", @writer.generate_row(@data.first))
   end
 
   def test_rcsv_write
@@ -75,7 +76,7 @@ class RcsvWriteTest < Test::Unit::TestCase
     io.rewind
 
     assert_equal(
-      "ID,Date,Money,Banana IDDQD,Hashformat,\r\n1,2012-11-11,$100.23,true,$1.00,false\r\n,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n", io.read
+      "ID,Date,Money,Banana IDDQD,Hashformat,\r\n1,2012-11-11,$100.23,true,$1.00,true\r\nelephant,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n,,,,,\r\n", io.read
     )
   end
 
@@ -90,7 +91,7 @@ class RcsvWriteTest < Test::Unit::TestCase
     io.rewind
 
     assert_equal(
-      "1,2012-11-11,$100.23,true,$1.00,false\r\n,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n", io.read
+      "1,2012-11-11,$100.23,true,$1.00,true\r\nelephant,1970-01-02,$-0.10,nyancat,$123.89,false\r\n3,2012-12-12,$0.00,sepulka,$-122.00,true\r\n,,,,,\r\n", io.read
     )
   end
 end
