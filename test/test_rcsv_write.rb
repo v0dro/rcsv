@@ -118,7 +118,7 @@ class RcsvWriteTest < Test::Unit::TestCase
   end
 
   def test_generate_row__should_handle_alternate_column_separators
-    writer = Rcsv.new(column_separator: '|')
+    writer = Rcsv.new(:column_separator => '|')
     assert_equal "1|2|\"before pipe | after pipe\"\n", writer.generate_row([1, 2, 'before pipe | after pipe'])
   end
 end
