@@ -4,3 +4,4 @@ source 'https://rubygems.org'
 gemspec
 
 gem "rake-compiler", :group => :development
+gem "test-unit", :group => :test, :platforms => :ruby_22

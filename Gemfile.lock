@@ -16,3 +16,7 @@ PLATFORMS
 DEPENDENCIES
   rake-compiler
   rcsv!
+  test-unit
+
+BUNDLED WITH
+   1.10.3
