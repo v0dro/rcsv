@@ -2,6 +2,7 @@ require "rcsv/rcsv"
 require "rcsv/version"
 
 require "stringio"
+require "English"
 
 class Rcsv
 
@@ -139,8 +140,16 @@ class Rcsv
   def initialize(write_options = {})
     @write_options = write_options
     @write_options[:column_separator] ||= ','
-    @write_options[:newline_delimiter] ||= "\r\n" # Making Excel happy...
+    @write_options[:newline_delimiter] ||= $INPUT_RECORD_SEPARATOR
     @write_options[:header] ||= false
+
+    @quote = '"'
+    @escaped_quote = @quote * 2
+    @quotable_chars = Regexp.new('[%s%s%s]' % [
+      Regexp.escape(@write_options[:column_separator]),
+      Regexp.escape(@write_options[:newline_delimiter]),
+      Regexp.escape(@quote)
+    ])
   end
 
   def write(io, &block)
@@ -162,9 +171,8 @@ class Rcsv
     max_index = row.size - 1
 
     row.each_with_index do |field, index|
-      unquoted_field = process(field, @write_options[:columns][index])
-      # TODO: a better quoting
-      csv_row << (unquoted_field.match(/,/) ? "\"#{unquoted_field}\"" : unquoted_field)
+      unquoted_field = process(field, @write_options[:columns] && @write_options[:columns][index])
+      csv_row << (unquoted_field.match(@quotable_chars) ? "\"#{unquoted_field.gsub(@quote, @escaped_quote)}\"" : unquoted_field)
       csv_row << column_separator unless index == max_index
     end
 
@@ -175,7 +183,7 @@ class Rcsv
 
   def process(field, column_options)
     return '' if field.nil?
-    return case column_options[:formatter]
+    return case column_options && column_options[:formatter]
     when :strftime
       format = column_options[:format] || "%Y-%m-%d %H:%M:%S %z"
       field.strftime(format)
