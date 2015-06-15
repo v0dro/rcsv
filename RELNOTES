@@ -1,3 +1,12 @@
+Version 0.3.0
+ * changed nil to be rendered as empty string by writer (by David Price)
+ * changed the default writer newline character from "\r\n" to platform's default (by Andrew Grim)
+ * improved writer quoting (by Andrew Grim)
+ * added :quote_char writer option (by @97jaz)
+ * added :output_encoding reader option (by David Price)
+ * added automatic encoding detection by reader (by David Price)
+ * updated supported Rubies list to REE, 1.8.7, 1.9.4, 2.0.0, 2.1.6, 2.2.2
+
 Version 0.2.1
   * removed a bunch of deprecation warnings (by Ivan Zarea)
   * added Ruby 2.1 support for Travis CI
