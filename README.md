@@ -114,6 +114,10 @@ A boolean flag. If enabled, only parses columns that are listed in :columns. Dis
 An integer. Default is 1MiB (1024 * 1024).
 Specifies a number of bytes that are read at once, thus allowing to read drectly from IO-like objects (files, sockets etc).
 
+### :output_encoding
+A string. By default is auto-detected from the original CSV file.
+If specified, enforces the encoding of parsed string values. The default value keeps the encoding the same as in the original CSV file.
+
 
 ## Examples
 
