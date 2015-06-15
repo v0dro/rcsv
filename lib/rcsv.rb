@@ -174,6 +174,7 @@ class Rcsv
   protected
 
   def process(field, column_options)
+    return '' if field.nil?
     return case column_options[:formatter]
     when :strftime
       format = column_options[:format] || "%Y-%m-%d %H:%M:%S %z"
