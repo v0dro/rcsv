@@ -1,23 +1,8 @@
 language: ruby
 rvm:
-<<<<<<< Updated upstream
-  - 1.9.3
-  - 2.0
-  - 2.1
-||||||| merged common ancestors
-  - 1.9.3
-  - 1.9.2
-  - 2.0.0
-  - 2.1.0
-  - 1.8.7
-  - ree
-env:
-  - JRUBY_OPTS="--server -Xcext.enabled=true -Xcompile.invokedynamic=false"
-=======
   - ree
   - 1.8.7
   - 1.9.4
   - 2.0.0
   - 2.1.6
   - 2.2.2
->>>>>>> Stashed changes
