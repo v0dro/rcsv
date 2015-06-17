@@ -114,7 +114,7 @@ class RcsvWriteTest < Test::Unit::TestCase
       "before separator , after separator",
       "separator , and quote \" oh my"
     ]
-    assert_equal [quotable_strings], Rcsv.parse(writer.generate_row(quotable_strings), header: :none)
+    assert_equal [quotable_strings], Rcsv.parse(writer.generate_row(quotable_strings), :header => :none)
   end
 
   def test_generate_row__should_handle_alternate_column_separators
