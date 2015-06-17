@@ -16,4 +16,7 @@ Gem::Specification.new do |gem|
   gem.name          = "rcsv"
   gem.require_paths = ["lib", "ext"]
   gem.version       = Rcsv::VERSION
+  if RUBY_VERSION >= '2.2'
+    gem.add_development_dependency "test-unit", "~> 3.0.8"
+  end
 end
