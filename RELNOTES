@@ -1,3 +1,7 @@
+Version 0.3.1
+ * Travis fixes
+ * Fixed older Ruby support in tests
+
 Version 0.3.0
  * changed nil to be rendered as empty string by writer (by David Price)
  * changed the default writer newline character from "\r\n" to platform's default (by Andrew Grim)
