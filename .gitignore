@@ -7,3 +7,5 @@ lib/rcsv/rcsv.so
 lib/rcsv/rcsv.bundle
 .*swp
 Gemfile.lock
+.bundle
+vendor/
