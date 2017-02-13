@@ -1,0 +1,97 @@
+alias size_t = int
+
+lib "stdbool.h" do
+  alias bool = bool
+end
+
+lib "csv.h" do
+  struct csv_parser do
+  end
+
+  int csv_init(csv_parser, unsigned char)
+  int csv_fini(csv_parser, void (*cb1)(void *, size_t, void *), void (*cb2)(int, void *), void *)
+  void csv_free(csv_parser *)
+  int csv_error(csv_parser *)
+  const char * csv_strerror(int)
+  size_t csv_parse(csv_parser *p, const void *, size_t, void (*cb1)(void *, size_t, void *), void (*cb2)(int, void *), void *)
+  size_t csv_write(void *, size_t, const void *, size_t)
+  int csv_fwrite(FILE *, const void *, size_t)
+  size_t csv_write2(void *, size_t, const void *, size_t, unsigned char)
+  int csv_fwrite2(FILE *, const void *, size_t, unsigned char)
+  int csv_get_opts(csv_parser *)
+  int csv_set_opts(csv_parser *, unsigned char)
+  void csv_set_delim(csv_parser *, unsigned char)
+  void csv_set_quote(csv_parser *, unsigned char)
+  unsigned char csv_get_delim(csv_parser *)
+  unsigned char csv_get_quote(csv_parser *)
+  void csv_set_space_func(csv_parser *, int (*f)(unsigned char))
+  void csv_set_term_func(csv_parser *, int (*f)(unsigned char))
+  void csv_set_realloc_func(csv_parser *, void *(*)(void *, size_t))
+  void csv_set_free_func(csv_parser *, void (*)(void *))
+  void csv_set_blk_size(csv_parser *, size_t)
+  size_t csv_get_buffer_size(csv_parser *)
+end
+
+struct rcsv_metadata do
+  # Derived from user-specified options
+  bool row_as_hash             # Used to return array of hashes rather than array of arrays
+  bool empty_field_is_nil      # Do we convert empty fields to nils?
+  size_t offset_rows           # Number of rows to skip before parsing
+  int encoding_index           # If available, the encoding index of the original input
+
+  char * row_conversions     # A pointer to string/array of row conversions char specifiers
+  object * only_rows          # A pointer to array of row filters
+  object * except_rows        # A pointer to array of negative row filters
+  object * row_defaults       # A pointer to array of row defaults
+  object * column_names       # A pointer to array of column names to be used with hashes
+
+  # Pointer options lengths
+  size_t num_row_conversions  # Number of converter types in row_conversions array
+  size_t num_only_rows        # Number of items in only_rows filter
+  size_t num_except_rows      # Number of items in except_rows filter
+  size_t num_row_defaults     # Number of default values in row_defaults array
+  size_t num_columns          # Number of columns detected from column_names.size
+
+  # Internal state
+  bool skip_current_row;      # Used by only_rows and except_rows filters to skip parsing of the row remainder
+  size_t current_col;         # Current column's index
+  size_t current_row;         # Current row's index
+
+  object last_entry           # A pointer to the last entry that's going to be appended to result
+  object result             # A pointer to the parsed data
+end
+
+class RcsvParseError < StandardError
+end
+
+class Rcsv
+  def self.parse(str file_name, hash opts)
+    rcsv_metadata meta
+    object csvio, options, option
+    ensure_container = []
+
+    setup_rcsv_metadata_defaults(meta)
+  end
+
+  cdef void setup_rcsv_metadata_defaults(meta)
+    meta.row_as_hash = 0;
+    meta.empty_field_is_nil = 0;
+    meta.skip_current_row = 0;
+    meta.encoding_index = -1;
+    meta.num_columns = 0;
+    meta.current_col = 0;
+    meta.current_row = 0;
+    meta.offset_rows = 0;
+    meta.num_only_rows = 0;
+    meta.num_except_rows = 0;
+    meta.num_row_defaults = 0;
+    meta.num_row_conversions = 0;
+    meta.only_rows = NULL;
+    meta.except_rows = NULL;
+    meta.row_defaults = NULL;
+    meta.row_conversions = NULL;
+    meta.column_names = NULL;
+    meta.result = []
+  end
+
+end
