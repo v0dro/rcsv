@@ -42,7 +42,7 @@ struct rcsv_metadata do
   size_t offset_rows           # Number of rows to skip before parsing
   int encoding_index           # If available, the encoding index of the original input
 
-  char * row_conversions     # A pointer to string/array of row conversions char specifiers
+  char * row_conversions      # A pointer to string/array of row conversions char specifiers
   object * only_rows          # A pointer to array of row filters
   object * except_rows        # A pointer to array of negative row filters
   object * row_defaults       # A pointer to array of row defaults
@@ -56,9 +56,9 @@ struct rcsv_metadata do
   size_t num_columns          # Number of columns detected from column_names.size
 
   # Internal state
-  bool skip_current_row;      # Used by only_rows and except_rows filters to skip parsing of the row remainder
-  size_t current_col;         # Current column's index
-  size_t current_row;         # Current row's index
+  bool skip_current_row       # Used by only_rows and except_rows filters to skip parsing of the row remainder
+  size_t current_col          # Current column's index
+  size_t current_row          # Current row's index
 
   object last_entry           # A pointer to the last entry that's going to be appended to result
   object result             # A pointer to the parsed data
@@ -75,7 +75,7 @@ class Rcsv
     ensure_container = []
     unsigned char csv_options = CSV_STRICT_FINI | CSV_APPEND_NULL
 
-    setup_rcsv_metadata_defaults(meta)
+    setup_rcsv_metadata_defaults(&meta)
     csvio = StringIO.new(file_name)
 
     if !opts[:nostrict]
@@ -154,8 +154,8 @@ class Rcsv
         csv_string = csvstr
         csv_string_len = csvstr.size
 
-        if csv_string != csv_parse(cp, csv_string, csv_string_len, &end_of_field_callback, &end_of_line_callback)
-          error = csv_error(cp)
+        if csv_string != csv_parse(&cp, csv_string, csv_string_len, &end_of_field_callback, &end_of_line_callback)
+          error = csv_error(&cp)
 
           if error == CSV_EPARSE
             raise RcsvParseError, "Error when parsing malformed data."
@@ -173,13 +173,34 @@ class Rcsv
     ensure
       free_all_memory(&cp, &meta)
     end
+
+    csv_fini(cp, &end_of_field_callback, &end_of_line_callback, meta)
   end
 
-  cdef void free_all_memory(csv_parser *cp, rcsv_metadata *meta)
+  cdef void end_of_field_callback(void* field, size_t field_size, void* data)
+    
+  end
+
+  cdef void end_of_line_callback(int last_char, void* data)
 
   end
 
-  cdef void setup_rcsv_metadata_defaults(meta)
+  # If pointers have been passed into the function, how will the compiler know
+  # attributes within the structs? - by referencing with the [] operator.
+  #
+  #
+  cdef void free_all_memory(csv_parser *p_cp, rcsv_metadata *p_meta)
+    csv_parser cp = p_cp[0]
+    rcsv_metadata meta = p_meta[0]
+
+    if (cp != NULL)
+      csv_free(&cp)
+    end
+  end
+
+  cdef void setup_rcsv_metadata_defaults(rcsv_metadata *p_meta)
+    rcsv_metadata meta = p_meta[0]
+
     meta.row_as_hash = 0
     meta.empty_field_is_nil = 0
     meta.skip_current_row = 0
